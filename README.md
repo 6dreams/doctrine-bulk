@@ -10,4 +10,24 @@ Adds ability to multiple insert of entities or array to database using doctrine 
 
 ### Samples
 #### Default usage
-...
+```php
+<?php
+declare(strict_types = 1);
+
+use \Doctrine\ORM\EntityManagerInterface;
+use \SixDreams\Bulk\BulkInsert;
+
+class DbWrite {
+    /** @var EntityManagerInterface */
+    private $manager;
+    
+    public function createTwoUsers(): int {
+        $firstInsertedId = (int) (new BulkInsert($this->manager, User::class))
+            ->addEntity(new User('user 1', 'password'))
+            ->addEntity(new User('user 2', 'password'))
+            ->execute();
+        
+        return $firstInsertedId;
+    }
+}
+```
