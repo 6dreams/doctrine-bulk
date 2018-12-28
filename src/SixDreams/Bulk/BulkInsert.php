@@ -103,15 +103,17 @@ class BulkInsert
 
         $ret = [];
         foreach ($this->metadata->getFields() as $field => $column) {
-            $prop  = $this->reflection->getProperty($field);
-            $prop->setAccessible(true);
-            $value = $prop->getValue($entity);
+            $value = $this
+                ->getClassProperty($this->reflection, $field)
+                ->getValue($entity);
 
             if (($column instanceof JoinColumnMetadata) && null !== $value) {
                 $subPropName = $field . '.' . $column->getReferenced();
                 if (!\array_key_exists($subPropName, $this->cachedReflProps)) {
-                    $this->cachedReflProps[$subPropName] = (new \ReflectionClass($value))
-                        ->getProperty($column->getReferenced());
+                    $this->cachedReflProps[$subPropName] = $this->getClassProperty(
+                        new \ReflectionClass($value),
+                        $column->getReferenced()
+                    );
                     $this->cachedReflProps[$subPropName]->setAccessible(true);
                 }
 
@@ -159,6 +161,33 @@ class BulkInsert
     }
 
     /**
+     * Search property in class or it's subclasses and make it accessible.
+     *
+     * @param \ReflectionClass $class
+     * @param string           $name
+     *
+     * @return \ReflectionProperty
+     *
+     * @throws FieldNotFoundException
+     */
+    private function getClassProperty(\ReflectionClass $class, string $name): \ReflectionProperty
+    {
+        if ($class->hasProperty($name)) {
+            $property = $class->getProperty($name);
+            $property->setAccessible(true);
+
+            return $property;
+        }
+
+        $subClass = $class->getParentClass();
+        if (!$class) {
+            throw new FieldNotFoundException($class->getName(), $name);
+        }
+
+        return $this->getClassProperty($subClass, $name);
+    }
+
+    /**
      * Executes insert to database and returns id of first inserted element.
      *
      * @param int   $flags
@@ -182,7 +211,7 @@ class BulkInsert
             (new Identifier($this->metadata->getTable()))->getQuotedName($platform),
             \implode(', ', \array_map(
                 function (string $column) use ($platform) {
-                    return (new Identifier($column))->getQuotedName($platform);
+                    return (new Identifier($this->metadata->getField($column)->getName()))->getQuotedName($platform);
                 },
                 $fields
             )),

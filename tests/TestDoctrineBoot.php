@@ -104,9 +104,7 @@ class TestDoctrineBoot extends TestCase
     protected function getManager(): EntityManagerInterface
     {
         return EntityManager::create(
-            [
-                'driver'   => 'pdo_sqlite'
-            ],
+            ['driver'   => 'pdo_sqlite'],
             Setup::createAnnotationMetadataConfiguration([__DIR__ . '/Entity/'], true, null, null, false)
         );
     }
