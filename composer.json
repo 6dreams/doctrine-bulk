@@ -1,7 +1,7 @@
 {
   "name": "6dreams/doctrine-bulk",
   "description": "Simple classes that allows bulk operations on entities",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "library",
   "license": "MIT",
   "authors": [
