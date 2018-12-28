@@ -1,0 +1,84 @@
+<?php
+declare(strict_types = 1);
+
+namespace SixDreams\Bulk;
+
+use Doctrine\ORM\Id\AbstractIdGenerator;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use SixDreams\DTO\ColumnMetadata;
+use SixDreams\DTO\JoinColumnMetadata;
+use SixDreams\DTO\Metadata;
+use SixDreams\Exceptions\NotSupportedIdGeneratorException;
+use SixDreams\Generator\BulkGeneratorInterface;
+
+/**
+ * Class MetadataLoader
+ */
+final class MetadataLoader
+{
+    /** @var Metadata[] */
+    private static $metadata = [];
+
+    // Supported Join types.
+    private const SUPPORTED_JOINS = [ClassMetadataInfo::ONE_TO_ONE => null, ClassMetadataInfo::MANY_TO_ONE => null];
+
+    /**
+     * MetadataLoader constructor.
+     */
+    private function __construct()
+    {
+    }
+
+    /**
+     * Loads metadata from "cache" or doctrine metadata.
+     *
+     * @param ClassMetadata $metadata
+     *
+     * @return Metadata
+     */
+    public static function load(ClassMetadata $metadata): Metadata
+    {
+        $class = $metadata->getName();
+        if (\array_key_exists($class, self::$metadata)) {
+            return self::$metadata[$class];
+        }
+        $dmeta = new Metadata($metadata->getTableName());
+
+        $id = $metadata->getSingleIdentifierFieldName();
+        $dmeta->setIdField($id);
+
+        foreach ($metadata->fieldMappings as $field => $mapping) {
+            $dmeta->addField($field, new ColumnMetadata($mapping['columnName'], $mapping['type'], $field === $id ? true : (bool) $mapping['nullable']));
+        }
+
+        $generator = $metadata->customGeneratorDefinition['class'] ?? null;
+        if ($generator) {
+            $generator = new $generator();
+            if (!($generator instanceof BulkGeneratorInterface) || !($generator instanceof AbstractIdGenerator)) {
+                throw new NotSupportedIdGeneratorException($generator);
+            }
+            $dmeta->setGenerator($generator);
+        }
+
+        $associations = \array_filter($metadata->getAssociationMappings(), function (array $association) {
+            return \array_key_exists($association['type'], self::SUPPORTED_JOINS);
+        });
+
+        foreach ($associations as $association) {
+            $column = $association['joinColumns'][0] ?? [];
+            if (!\count($column)) {
+                continue; // looks broken...
+            }
+            $dmeta->addField(
+                $association['fieldName'],
+                (new JoinColumnMetadata($column['name'], '', (bool) $column['nullable']))
+                    ->setReferenced($column['referencedColumnName'])
+            );
+        }
+
+        self::$metadata[$class] = $dmeta;
+
+        return $dmeta;
+    }
+}

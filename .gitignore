@@ -1,0 +1,7 @@
+
+/vendor/
+
+.idea/*
+/.idea/
+notez
+composer.lock
