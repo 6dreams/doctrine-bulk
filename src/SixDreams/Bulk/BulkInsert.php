@@ -16,9 +16,9 @@ use SixDreams\Exceptions\NullValueException;
 use SixDreams\Exceptions\WrongEntityException;
 
 /**
- * Class BulkInsert
+ * Allows to insert multiple doctrine entities to database.
  */
-class BulkInsert
+class BulkInsert extends AbstractBulk
 {
     public const FLAG_NONE              = 0;
     public const FLAG_IGNORE_MODE       = 1 << 1;
@@ -76,7 +76,7 @@ class BulkInsert
         foreach ($this->metadata->getFields() as $field => $column) {
             /** @noinspection NotOptimalIfConditionsInspection */
             if (!$column->isNullable() && !\array_key_exists($field, $data)) {
-                throw new NullValueException($field, $this->class);
+                throw new NullValueException($this->class, $field);
             }
         }
 
@@ -121,7 +121,7 @@ class BulkInsert
             }
 
             if (null === $value && !$column->isNullable()) {
-                throw new NullValueException($field, $this->class);
+                throw new NullValueException($this->class, $field);
             }
 
             $ret[$field] = $value;
@@ -141,6 +141,10 @@ class BulkInsert
      */
     public function execute(int $flags = self::FLAG_NONE, int $maxRows = self::DEFAULT_ROWS): ?string
     {
+        if (!\count($this->values)) {
+            return null;
+        }
+
         if ($flags & self::FLAG_IGNORE_DUPLICATES) {
             $temp = [];
             foreach ($this->values as $value) {
@@ -156,35 +160,9 @@ class BulkInsert
             $lastInsertId = $this->executePartial($flags, $values);
             $lastId = $lastId ?? $lastInsertId;
         }
+        $this->values = [];
 
         return $lastId;
-    }
-
-    /**
-     * Search property in class or it's subclasses and make it accessible.
-     *
-     * @param \ReflectionClass $class
-     * @param string           $name
-     *
-     * @return \ReflectionProperty
-     *
-     * @throws FieldNotFoundException
-     */
-    private function getClassProperty(\ReflectionClass $class, string $name): \ReflectionProperty
-    {
-        if ($class->hasProperty($name)) {
-            $property = $class->getProperty($name);
-            $property->setAccessible(true);
-
-            return $property;
-        }
-
-        $subClass = $class->getParentClass();
-        if (!$class) {
-            throw new FieldNotFoundException($class->getName(), $name);
-        }
-
-        return $this->getClassProperty($subClass, $name);
     }
 
     /**
@@ -197,11 +175,7 @@ class BulkInsert
      */
     private function executePartial(int $flags, array $values): ?string
     {
-        $fields = [ [] ];
-        foreach ($values as $value) {
-            $fields[] = \array_keys($value);
-        }
-        $fields = \array_flip(\array_flip(\array_merge(...$fields)));
+        $fields = $this->getAllUsedFields($values);
 
         $platform = $this->manager->getConnection()->getDatabasePlatform();
 
