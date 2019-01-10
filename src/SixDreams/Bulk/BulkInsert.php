@@ -3,14 +3,6 @@ declare(strict_types = 1);
 
 namespace SixDreams\Bulk;
 
-use Doctrine\DBAL\Driver\Statement;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Schema\Identifier;
-use Doctrine\DBAL\Types\Type;
-use Doctrine\ORM\EntityManagerInterface;
-use SixDreams\DTO\AbstractColumnMetadata;
-use SixDreams\DTO\JoinColumnMetadata;
-use SixDreams\DTO\Metadata;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
 use SixDreams\Exceptions\WrongEntityException;
@@ -27,37 +19,8 @@ class BulkInsert extends AbstractBulk
 
     public const DEFAULT_ROWS = 1000;
 
-    /** @var EntityManagerInterface */
-    private $manager;
-
-    /** @var string */
-    private $class;
-
-    /** @var Metadata */
-    private $metadata;
-
     /** @var array[] */
     private $values = [];
-
-    /** @var \ReflectionClass */
-    private $reflection;
-
-    /** @var \ReflectionProperty[] */
-    private $cachedReflProps = [];
-
-    /**
-     * BulkInsert constructor.
-     *
-     * @param EntityManagerInterface $manager
-     * @param string                 $class
-     */
-    public function __construct(EntityManagerInterface $manager, string $class)
-    {
-        $this->manager    = $manager;
-        $this->class      = $class;
-        $this->metadata   = MetadataLoader::load($manager->getClassMetadata($class));
-        $this->reflection = new \ReflectionClass($class);
-    }
 
     /**
      * Data.
@@ -103,22 +66,11 @@ class BulkInsert extends AbstractBulk
 
         $ret = [];
         foreach ($this->metadata->getFields() as $field => $column) {
-            $value = $this
-                ->getClassProperty($this->reflection, $field)
-                ->getValue($entity);
-
-            if (($column instanceof JoinColumnMetadata) && null !== $value) {
-                $subPropName = $field . '.' . $column->getReferenced();
-                if (!\array_key_exists($subPropName, $this->cachedReflProps)) {
-                    $this->cachedReflProps[$subPropName] = $this->getClassProperty(
-                        new \ReflectionClass($value),
-                        $column->getReferenced()
-                    );
-                    $this->cachedReflProps[$subPropName]->setAccessible(true);
-                }
-
-                $value = $this->cachedReflProps[$subPropName]->getValue($value);
-            }
+            $value = $this->getJoinedEntityValue(
+                $column,
+                $this->getClassProperty($this->reflection, $field)->getValue($entity),
+                $field
+            );
 
             if (null === $value && !$column->isNullable()) {
                 throw new NullValueException($this->class, $field);
@@ -177,15 +129,13 @@ class BulkInsert extends AbstractBulk
     {
         $fields = $this->getAllUsedFields($values);
 
-        $platform = $this->manager->getConnection()->getDatabasePlatform();
-
         $query = \sprintf(
             '%s INTO %s (%s) VALUES %s;',
             ($flags & self::FLAG_IGNORE_MODE) === self::FLAG_IGNORE_MODE ? 'INSERT IGNORE' : 'INSERT',
-            (new Identifier($this->metadata->getTable()))->getQuotedName($platform),
+            $this->escape($this->metadata->getTable()),
             \implode(', ', \array_map(
-                function (string $column) use ($platform) {
-                    return (new Identifier($this->metadata->getField($column)->getName()))->getQuotedName($platform);
+                function (string $column) {
+                    return $this->escape($this->metadata->getField($column)->getName());
                 },
                 $fields
             )),
@@ -208,28 +158,5 @@ class BulkInsert extends AbstractBulk
         $stmt->execute();
 
         return ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID ? null : $this->manager->getConnection()->lastInsertId();
-    }
-
-    /**
-     * Bind value to statement.
-     *
-     * @param Statement              $statement
-     * @param int                    $index
-     * @param AbstractColumnMetadata $column
-     * @param mixed                  $value
-     */
-    private function bind(Statement $statement, int $index, AbstractColumnMetadata $column, $value): void
-    {
-        $type = ParameterType::STRING;
-        if (Type::hasType($column->getType())) {
-            $type  = Type::getType($column->getType());
-            $value = $type->convertToDatabaseValue(
-                $value,
-                $this->manager->getConnection()->getDatabasePlatform()
-            );
-            $type = $type->getBindingType();
-        }
-
-        $statement->bindValue($index, $value, $type);
     }
 }

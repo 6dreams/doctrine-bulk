@@ -4,7 +4,6 @@ declare(strict_types = 1);
 namespace SixDreams\Bulk;
 
 use Doctrine\ORM\EntityManagerInterface;
-use SixDreams\DTO\Metadata;
 use SixDreams\Exceptions\CannotChangeWhereException;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
@@ -15,26 +14,11 @@ use SixDreams\Exceptions\WrongEntityException;
  */
 class BulkUpdate extends AbstractBulk
 {
-    /** @var EntityManagerInterface */
-    private $manager;
-
-    /** @var string */
-    private $class;
-
-    /** @var Metadata */
-    private $metadata;
-
     /** @var array[] */
     private $values = [];
 
-    /** @var \ReflectionClass */
-    private $reflection;
-    
     /** @var string */
     private $whereField;
-
-    /** @var \ReflectionProperty[] */
-    private $cachedReflProps = [];
 
     /**
      * BulkUpdate constructor.
@@ -44,10 +28,7 @@ class BulkUpdate extends AbstractBulk
      */
     public function __construct(EntityManagerInterface $manager, string $class)
     {
-        $this->manager    = $manager;
-        $this->class      = $class;
-        $this->metadata   = MetadataLoader::load($manager->getClassMetadata($class));
-        $this->reflection = new \ReflectionClass($class);
+        parent::__construct($manager, $class);
         $this->whereField = $this->metadata->getIdField();
     }
 
@@ -91,14 +72,18 @@ class BulkUpdate extends AbstractBulk
                 throw new FieldNotFoundException($this->class, $name);
             }
         }
+        $update = [];
         foreach ($this->metadata->getFields() as $field => $column) {
             /** @noinspection NotOptimalIfConditionsInspection */
             if (!$column->isNullable() && \array_key_exists($field, $data) && null === $data[$field]) {
                 throw new NullValueException($this->class, $field);
             }
+            if (\array_key_exists($field, $data)) {
+                $update[$column->getName()] = [$data[$field], $column];
+            }
         }
 
-        $this->values[$where] = $data;
+        $this->values[$where] = $update;
 
         return $this;
     }
@@ -119,7 +104,7 @@ class BulkUpdate extends AbstractBulk
             throw new WrongEntityException($this->class, $entity);
         }
 
-        $fields = \array_flip($fields);
+        $fields = $fields ? \array_flip($fields) : null;
 
         $where = null;
         $data  = [];
@@ -131,8 +116,13 @@ class BulkUpdate extends AbstractBulk
             if ($fields && !\array_key_exists($field, $fields)) {
                 continue;
             }
-            $data[$field] = $this->getClassProperty($this->reflection, $field)->getValue($entity);
-            if (null === $data[$field] && !$column->isNullable()) {
+            $value = $this->getJoinedEntityValue(
+                $column,
+                $this->getClassProperty($this->reflection, $field)->getValue($entity),
+                $field
+            );
+            $data[$column->getName()] = [$value, $column];
+            if (null === $value && !$column->isNullable()) {
                 throw new NullValueException($this->class, $field);
             }
         }
@@ -144,37 +134,69 @@ class BulkUpdate extends AbstractBulk
         return $this;
     }
 
-    public function execute()
+    /**
+     * Execute update query. Return amount of affected rows.
+     *
+     * @return int
+     */
+    public function execute(): int
+    {
+        /** @var array $bindings */
+        [$query, $bindings] = $this->getSQL();
+
+        if (!$query) {
+            return 0;
+        }
+
+        $stmt = $this->manager->getConnection()->prepare($query);
+        foreach ($bindings as $name => $binding) {
+            $this->bind($stmt, $name, $binding[1], $binding[0]);
+        }
+
+        $stmt->execute();
+
+        return (int) $stmt->rowCount();
+    }
+
+    /**
+     * Return SQL query and bindings.
+     *
+     * @return array
+     */
+    public function getSQL(): array
     {
         $values = $this->values;
         if (!\count($values)) {
-            return null;
+            return [null, []];
         }
 
         $fields = $this->getAllUsedFields($values);
 
-
-
-        $cases = [];
+        $cases = $bindings = [];
         $thenId = 0;
         foreach ($values as $when => $entity) {
-            //$cases[$field][] = \sprintf('CASE %s', $this->whereField);
-            $when = $this->escapeValue($when);
+            $whenEsc = $this->simpleValue($when);
             foreach ($fields as $field) {
+                if (null === $whenEsc) {
+                    $bindings[':W' . $thenId] = $when;
+                }
                 if (\array_key_exists($field, $entity)) {
                     $cases[$field][] = \sprintf(
                         'WHEN %s THEN %s',
-                        $when ?? ':W' . $thenId,
-                        $this->escapeValue($entity[$field]) ?? ':T' . $thenId
+                        $whenEsc ?? ':W' . $thenId,
+                        $this->simpleValue($entity[$field][0]) ?? ':T' . $thenId
                     );
+                    if ($this->simpleValue($entity[$field][0]) === null) {
+                        $bindings[':T' . $thenId] = $entity[$field];
+                    }
                 } else {
-                    $cases[$field][] = \sprintf('WHEN %s THEN %s', $when ?? ':W' . $thenId, $field); // todo: escape field
+                    $cases[$field][] = \sprintf('WHEN %s THEN %s', $whenEsc ?? ':W' . $thenId, $this->escape($field));
                 }
                 $thenId++;
             }
         }
         foreach ($cases as $field => &$case) {
-            $case = \sprintf('SET %s = (%s)', $field, \implode(' ', $case));
+            $case = \sprintf('SET %s = (%s)', $this->escape($field), \implode(' ', $case));
         }
         unset($case);
         $cases = \implode(', ', $cases);
@@ -185,31 +207,34 @@ class BulkUpdate extends AbstractBulk
             if ('' !== $criterias) {
                 $criterias .= ', ';
             }
-            $criterias .= $this->escapeValue($criteria) ?? ':C' . $critId;
+            $critEsc    = $this->simpleValue($criteria);
+            $criterias .= $critEsc ?? ':C' . $critId;
+            if (null === $critEsc) {
+                $bindings[':C' . $critId] = $criteria;
+            }
+            $critId++;
         }
 
         $query = \sprintf(
             'UPDATE %s %s WHERE %s IN (%s);',
-            $this->metadata->getTable(),
+            $this->escape($this->metadata->getTable()),
             $cases,
-            $this->whereField, // todo: escape where & table
-            $criterias // todo: \implode(\array_keys($values)) with escape or binding..
+            $this->escape($this->whereField),
+            $criterias
         );
-        /*
-UPDATE table_name
-SET text = (CASE id WHEN 1 THEN 'da'
-                    WHEN 2 THEN 'net'
-           END)
-SET text2 = (CASE id WHEN 1 THEN 'net'
-                    WHEN 2 THEN text2)
-WHERE id IN (1, 2);
 
-UPDATE %s SET field = (CASE field WHEN ?|value THEN ?|value|field ...) ... WHERE field IN (?|value)
-         */
-        // todo.
+        return [$query, $bindings];
     }
 
-    protected function escapeValue($value)
+    /**
+     * Check is value is simple (float, int, null) and return it's representation in SQL, otherwise return null (marker
+     *  that value require binding).
+     *
+     * @param mixed $value
+     *
+     * @return float|int|string|null
+     */
+    protected function simpleValue($value)
     {
         if (null === $value) {
             return 'NULL';

@@ -3,10 +3,6 @@ declare(strict_types = 1);
 
 namespace Tests;
 
-use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\Setup;
-use PHPUnit\Framework\TestCase;
 use SixDreams\Bulk\BulkInsert;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
@@ -16,7 +12,7 @@ use Tests\Entity\Book;
 /**
  * Class TestDoctrineBoot
  */
-class TestDoctrineBoot extends TestCase
+class InsertTest extends AbstractBulkTest
 {
     /**
      * Test adding entity to bulk.
@@ -94,18 +90,5 @@ class TestDoctrineBoot extends TestCase
         $prop->setAccessible(true);
 
         return $prop->getValue($class);
-    }
-
-    /**
-     * Create new entity manager.
-     *
-     * @return EntityManagerInterface
-     */
-    protected function getManager(): EntityManagerInterface
-    {
-        return EntityManager::create(
-            ['driver'   => 'pdo_sqlite'],
-            Setup::createAnnotationMetadataConfiguration([__DIR__ . '/Entity/'], true, null, null, false)
-        );
     }
 }

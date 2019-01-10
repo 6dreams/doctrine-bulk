@@ -47,6 +47,20 @@ class Book
     protected $author;
 
     /**
+     * Setter for Id.
+     *
+     * @param int $id
+     *
+     * @return Book
+     */
+    public function setId(int $id): Book
+    {
+        $this->id = $id;
+
+        return $this;
+    }
+
+    /**
      * Setter for Title.
      *
      * @param string $title
