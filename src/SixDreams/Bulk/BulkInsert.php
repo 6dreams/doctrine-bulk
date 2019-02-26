@@ -78,6 +78,14 @@ class BulkInsert extends AbstractBulk
 
             $ret[$field] = $value;
         }
+
+        $generator = $this->metadata->getGenerator();
+        $idField   = $this->metadata->getIdField();
+
+        if ($generator && null === $ret[$idField] ?? null) {
+            $ret[$idField] = $generator->generateBulk($this->manager, $this->class, $ret);
+        }
+
         $this->values[] = $ret;
 
         return $this;
@@ -157,6 +165,8 @@ class BulkInsert extends AbstractBulk
 
         $stmt->execute();
 
-        return ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID ? null : $this->manager->getConnection()->lastInsertId();
+        $noLastId = ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID || $this->metadata->getGenerator() !== null;
+
+        return $noLastId ? null : $this->manager->getConnection()->lastInsertId();
     }
 }

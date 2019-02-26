@@ -107,7 +107,7 @@ class BulkUpdate extends AbstractBulk
         $fields = $fields ? \array_flip($fields) : null;
 
         $where = null;
-        $data  = [];
+        $data = $flat = [];
         foreach ($this->metadata->getFields() as $field => $column) {
             if ($field === $this->whereField) {
                 $where = $this->getClassProperty($this->reflection, $field)->getValue($entity);
@@ -122,12 +122,18 @@ class BulkUpdate extends AbstractBulk
                 $field
             );
             $data[$column->getName()] = [$value, $column];
+            $flat[$column->getName()] = $value;
             if (null === $value && !$column->isNullable()) {
                 throw new NullValueException($this->class, $field);
             }
         }
 
         if (\count($data)) {
+            $generator = $this->metadata->getGenerator();
+            if ($generator && null === $where) {
+                $where = $generator->generateBulk($this->manager, $this->class, $flat);
+            }
+
             $this->values[$where] = $data;
         }
 
@@ -171,6 +177,7 @@ class BulkUpdate extends AbstractBulk
         }
 
         $fields = $this->getAllUsedFields($values);
+        $idMeta = $this->metadata->getField($this->metadata->getIdField());
 
         $cases = $bindings = [];
         $thenId = 0;
@@ -178,11 +185,12 @@ class BulkUpdate extends AbstractBulk
             $whenEsc = $this->simpleValue($when);
             foreach ($fields as $field) {
                 if (null === $whenEsc) {
-                    $bindings[':W' . $thenId] = $when;
+                    $bindings[':W' . $thenId] = [$when, $idMeta];
                 }
                 if (\array_key_exists($field, $entity)) {
                     $cases[$field][] = \sprintf(
-                        'WHEN %s THEN %s',
+                        'WHEN %s = %s THEN %s',
+                        $this->escape($idMeta->getName()),
                         $whenEsc ?? ':W' . $thenId,
                         $this->simpleValue($entity[$field][0]) ?? ':T' . $thenId
                     );
@@ -190,13 +198,18 @@ class BulkUpdate extends AbstractBulk
                         $bindings[':T' . $thenId] = $entity[$field];
                     }
                 } else {
-                    $cases[$field][] = \sprintf('WHEN %s THEN %s', $whenEsc ?? ':W' . $thenId, $this->escape($field));
+                    $cases[$field][] = \sprintf(
+                        'WHEN %s = %s THEN %s',
+                        $this->escape($idMeta->getName()),
+                        $whenEsc ?? ':W' . $thenId,
+                        $this->escape($field)
+                    );
                 }
                 $thenId++;
             }
         }
         foreach ($cases as $field => &$case) {
-            $case = \sprintf('SET %s = (%s)', $this->escape($field), \implode(' ', $case));
+            $case = \sprintf('%s = CASE %s END', $this->escape($field), \implode(' ', $case));
         }
         unset($case);
         $cases = \implode(', ', $cases);
@@ -210,13 +223,13 @@ class BulkUpdate extends AbstractBulk
             $critEsc    = $this->simpleValue($criteria);
             $criterias .= $critEsc ?? ':C' . $critId;
             if (null === $critEsc) {
-                $bindings[':C' . $critId] = $criteria;
+                $bindings[':C' . $critId] = [$criteria, $idMeta];
             }
             $critId++;
         }
 
         $query = \sprintf(
-            'UPDATE %s %s WHERE %s IN (%s);',
+            'UPDATE %s SET %s WHERE %s IN (%s);',
             $this->escape($this->metadata->getTable()),
             $cases,
             $this->escape($this->whereField),
