@@ -3,7 +3,10 @@ declare(strict_types = 1);
 
 namespace SixDreams\Bulk;
 
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
+use SixDreams\DTO\ColumnMetadata;
 use SixDreams\Exceptions\CannotChangeWhereException;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
@@ -172,6 +175,7 @@ class BulkUpdate extends AbstractBulk
     public function getSQL(): array
     {
         $values = $this->values;
+        $platform = $this->manager->getConnection()->getDatabasePlatform();
         if (!\count($values)) {
             return [null, []];
         }
@@ -182,7 +186,7 @@ class BulkUpdate extends AbstractBulk
         $cases = $bindings = [];
         $thenId = 0;
         foreach ($values as $when => $entity) {
-            $whenEsc = $this->simpleValue($when);
+            $whenEsc = $this->simpleValue($when, $platform);
             foreach ($fields as $field) {
                 if (null === $whenEsc) {
                     $bindings[':W' . $thenId] = [$when, $idMeta];
@@ -192,9 +196,9 @@ class BulkUpdate extends AbstractBulk
                         'WHEN %s = %s THEN %s',
                         $this->escape($idMeta->getName()),
                         $whenEsc ?? ':W' . $thenId,
-                        $this->simpleValue($entity[$field][0]) ?? ':T' . $thenId
+                        $this->simpleValue($entity[$field][0], $platform, $entity[$field][1]) ?? ':T' . $thenId
                     );
-                    if ($this->simpleValue($entity[$field][0]) === null) {
+                    if ($this->simpleValue($entity[$field][0], $platform, $entity[$field][1]) === null) {
                         $bindings[':T' . $thenId] = $entity[$field];
                     }
                 } else {
@@ -220,7 +224,7 @@ class BulkUpdate extends AbstractBulk
             if ('' !== $criterias) {
                 $criterias .= ', ';
             }
-            $critEsc    = $this->simpleValue($criteria);
+            $critEsc    = $this->simpleValue($criteria, $platform);
             $criterias .= $critEsc ?? ':C' . $critId;
             if (null === $critEsc) {
                 $bindings[':C' . $critId] = [$criteria, $idMeta];
@@ -243,12 +247,17 @@ class BulkUpdate extends AbstractBulk
      * Check is value is simple (float, int, null) and return it's representation in SQL, otherwise return null (marker
      *  that value require binding).
      *
-     * @param mixed $value
+     * @param mixed            $value
+     * @param AbstractPlatform $platform
+     * @param ColumnMetadata   $metadata
      *
      * @return float|int|string|null
      */
-    protected function simpleValue($value)
+    protected function simpleValue($value, AbstractPlatform $platform, ?ColumnMetadata $metadata = null)
     {
+        if ($metadata && $platform->getName() === 'postgresql' && $metadata->getType() === Type::BOOLEAN) {
+            return $value ? 'true' : 'false';
+        }
         if (null === $value) {
             return 'NULL';
         }
