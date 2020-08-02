@@ -1,0 +1,26 @@
+language: php
+dist: bionic
+
+cache:
+    directories:
+        - vendor
+        - $HOME/.composer/cache
+
+before_install:
+    - phpenv config-rm xdebug.ini || true
+
+install:
+    - travis_retry composer -n install --prefer-dist
+
+script:
+    - ./vendor/bin/phpunit --configuration phpunit.build.xml
+
+jobs:
+    include:
+        - stage: Test
+          php: 7.4
+        - stage: Test
+          php: 7.2
+
+    allow_failures:
+        - env: DEPENDENCIES=dev

@@ -3,7 +3,6 @@ declare(strict_types = 1);
 
 namespace SixDreams\DTO;
 
-use Doctrine\ORM\Id\AbstractIdGenerator;
 use SixDreams\Generator\BulkGeneratorInterface;
 
 /**
@@ -14,7 +13,7 @@ final class Metadata
     /** @var string */
     private $table;
 
-    /** @var AbstractColumnMetadata[] */
+    /** @var ColumnMetadataInterface[] */
     private $fields = [];
 
     /** @var string */
@@ -26,7 +25,7 @@ final class Metadata
     /**
      * MetadataDto constructor.
      *
-     * @param string $table
+     * @param string|null $table
      */
     public function __construct(?string $table = null)
     {
@@ -61,11 +60,11 @@ final class Metadata
      * Add column.
      *
      * @param string                 $field
-     * @param AbstractColumnMetadata $column
+     * @param ColumnMetadataInterface $column
      *
      * @return Metadata
      */
-    public function addField(string $field, AbstractColumnMetadata $column): Metadata
+    public function addField(string $field, ColumnMetadataInterface $column): Metadata
     {
         $this->fields[$field] = $column;
 
@@ -75,7 +74,7 @@ final class Metadata
     /**
      * Getter for Fields
      *
-     * @return AbstractColumnMetadata[]
+     * @return ColumnMetadataInterface[]
      */
     public function getFields(): array
     {
@@ -99,9 +98,9 @@ final class Metadata
      *
      * @param string $name
      *
-     * @return AbstractColumnMetadata
+     * @return ColumnMetadataInterface
      */
-    public function getField(string $name): AbstractColumnMetadata
+    public function getField(string $name): ColumnMetadataInterface
     {
         return $this->fields[$name];
     }

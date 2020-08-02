@@ -50,7 +50,7 @@ class UpdateTest extends AbstractBulkTest
             ->addEntity((new Book())->setId(123)->setTitle('test'), ['title'])
             ->getSQL();
 
-        self::assertEquals('UPDATE book SET title = (WHEN 123 THEN :T0) WHERE id IN (123);', $query);
+        self::assertEquals('UPDATE book SET title = CASE WHEN id = 123 THEN :T0 END WHERE id IN (123);', $query);
         self::assertCount(1, $bind);
     }
 
@@ -63,7 +63,7 @@ class UpdateTest extends AbstractBulkTest
     {
         return [
             [
-                'UPDATE book SET title = (WHEN 123 THEN :T0 WHEN 333 THEN :T3), SET short_text = (WHEN 123 THEN NULL WHEN 333 THEN short_text), SET author_id = (WHEN 123 THEN NULL WHEN 333 THEN 1) WHERE id IN (123, 333);',
+                'UPDATE book SET title = CASE WHEN id = 123 THEN :T0 WHEN id = 333 THEN :T3 END, short_text = CASE WHEN id = 123 THEN NULL WHEN id = 333 THEN short_text END, author_id = CASE WHEN id = 123 THEN NULL WHEN id = 333 THEN 1 END WHERE id IN (123, 333);',
                 2,
                 [
                     123 => (new Book())
@@ -76,12 +76,12 @@ class UpdateTest extends AbstractBulkTest
                 ]
             ],
             [
-                'UPDATE book SET title = (WHEN 123 THEN :T0), SET short_text = (WHEN 123 THEN NULL), SET author_id = (WHEN 123 THEN :T2) WHERE id IN (123);',
+                'UPDATE book SET title = CASE WHEN id = 123 THEN :T0 END, short_text = CASE WHEN id = 123 THEN NULL END, author_id = CASE WHEN id = 123 THEN :T2 END WHERE id IN (123);',
                 2,
                 [
                     123 => [
                         'title'     => 'Overwrite',
-                        'author'    => 666,
+                        'author'    => 32770,
                         'shortText' => 'ddd'
                     ],
                     333 => (new Book())

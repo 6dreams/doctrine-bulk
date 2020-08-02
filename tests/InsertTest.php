@@ -27,7 +27,7 @@ class InsertTest extends AbstractBulkTest
         $bulk = new BulkInsert($manager, Author::class);
         $bulk->addEntity((new Author())->setFullName('full namez')->setOtherData('random stuff'));
         self::assertEquals(
-            [['id' => null, 'fullName' => 'full namez', 'otherData' => 'random stuff']],
+            [['id' => 'akwkorfmq0w0kg8scsgsos4c0', 'fullName' => 'full namez', 'otherData' => 'random stuff']],
             $this->extractField($bulk, 'values')
         );
 

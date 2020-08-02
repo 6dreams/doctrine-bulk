@@ -7,6 +7,7 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use SixDreams\DTO\ColumnMetadata;
+use SixDreams\DTO\ColumnMetadataInterface;
 use SixDreams\Exceptions\CannotChangeWhereException;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
@@ -247,13 +248,13 @@ class BulkUpdate extends AbstractBulk
      * Check is value is simple (float, int, null) and return it's representation in SQL, otherwise return null (marker
      *  that value require binding).
      *
-     * @param mixed            $value
-     * @param AbstractPlatform $platform
-     * @param ColumnMetadata   $metadata
+     * @param mixed                        $value
+     * @param AbstractPlatform             $platform
+     * @param ColumnMetadataInterface|null $metadata
      *
      * @return float|int|string|null
      */
-    protected function simpleValue($value, AbstractPlatform $platform, ?ColumnMetadata $metadata = null)
+    protected function simpleValue($value, AbstractPlatform $platform, ?ColumnMetadataInterface $metadata = null)
     {
         if ($metadata && $platform->getName() === 'postgresql' && $metadata->getType() === Type::BOOLEAN) {
             return $value ? 'true' : 'false';

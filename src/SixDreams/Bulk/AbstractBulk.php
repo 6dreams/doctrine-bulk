@@ -4,11 +4,10 @@ declare(strict_types = 1);
 namespace SixDreams\Bulk;
 
 use Doctrine\DBAL\Driver\Statement;
-use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
-use SixDreams\DTO\AbstractColumnMetadata;
+use SixDreams\DTO\ColumnMetadataInterface;
 use SixDreams\DTO\JoinColumnMetadata;
 use SixDreams\DTO\Metadata;
 use SixDreams\Exceptions\FieldNotFoundException;
@@ -94,14 +93,14 @@ abstract class AbstractBulk
     /**
      * Bind value to statement.
      *
-     * @param Statement              $statement
-     * @param int|string             $index
-     * @param AbstractColumnMetadata $column
-     * @param mixed                  $value
+     * @param Statement               $statement
+     * @param int|string              $index
+     * @param ColumnMetadataInterface $column
+     * @param mixed                   $value
      */
-    protected function bind(Statement $statement, $index, AbstractColumnMetadata $column, $value): void
+    protected function bind(Statement $statement, $index, ColumnMetadataInterface $column, $value): void
     {
-        $type = ParameterType::STRING;
+        $type = \PDO::PARAM_STR;
         if (Type::hasType($column->getType())) {
             $type  = Type::getType($column->getType());
             $value = $type->convertToDatabaseValue(
@@ -117,15 +116,15 @@ abstract class AbstractBulk
     /**
      * Extract joined entity value, if entity is really joined.
      *
-     * @param AbstractColumnMetadata $column
-     * @param object|null            $value
-     * @param string                 $field
+     * @param ColumnMetadataInterface $column
+     * @param object|null             $value
+     * @param string                  $field
      *
      * @return mixed
      *
      * @throws FieldNotFoundException
      */
-    protected function getJoinedEntityValue(AbstractColumnMetadata $column, $value, string $field)
+    protected function getJoinedEntityValue(ColumnMetadataInterface $column, $value, string $field)
     {
         if (($column instanceof JoinColumnMetadata) && null !== $value && \is_object($value)) {
             $subPropName = $field . '.' . $column->getReferenced();

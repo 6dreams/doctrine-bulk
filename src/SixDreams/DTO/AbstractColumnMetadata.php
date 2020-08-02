@@ -6,7 +6,7 @@ namespace SixDreams\DTO;
 /**
  * Contains information about table column.
  */
-abstract class AbstractColumnMetadata
+abstract class AbstractColumnMetadata implements ColumnMetadataInterface
 {
     /** @var string */
     private $name;
