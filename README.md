@@ -1,6 +1,8 @@
 # Doctrine-Bulk Classes
 Adds ability to multiple insert of entities or array to database using doctrine schema.
 
+[![Build Status](https://travis-ci.org/6dreams/doctrine-bulk.svg?branch=master)](https://travis-ci.org/6dreams/doctrine-bulk)
+
 ### Notes
 * Designed for MySQL (also works with PostgreSQL)
 * Works with custom id generators (need few tweaks)
