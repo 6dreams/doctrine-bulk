@@ -5,3 +5,4 @@
 /.idea/
 notez
 composer.lock
+.phpunit.result.cache

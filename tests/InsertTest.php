@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Tests;
 
+use Doctrine\DBAL\Logging\DebugStack;
 use SixDreams\Bulk\BulkInsert;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
@@ -74,6 +75,30 @@ class InsertTest extends AbstractBulkTest
 
         (new BulkInsert($this->getManager(), Author::class))
             ->addValue(['dno' => '']);
+    }
+
+    /**
+     * Test inserting array by COPY (pgsql only).
+     */
+    public function testArrayCopy(): void
+    {
+        self::markTestSkipped('Configure travis for postgresql first');
+        $manager = $this->getManager();
+
+        $data = ['fullName' => 'full namez', 'otherData' => 'random stuff'];
+
+        $bulk = (new BulkInsert($manager, Author::class))
+            ->addValue($data)
+        ;
+
+        $logger = new DebugStack();
+        $manager->getConfiguration()->setSQLLogger($logger);
+
+        $manager->beginTransaction();
+        $bulk->execute(BulkInsert::FLAG_COPY_AS_INSERT);
+        $manager->rollback();
+
+        $y = 1;
     }
 
     /**

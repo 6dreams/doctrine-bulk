@@ -3,9 +3,11 @@ declare(strict_types = 1);
 
 namespace SixDreams\Bulk;
 
+use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
 use SixDreams\Exceptions\WrongEntityException;
+use SixDreams\Exceptions\WrongPlatformException;
 
 /**
  * Allows to insert multiple doctrine entities to database.
@@ -16,6 +18,7 @@ class BulkInsert extends AbstractBulk
     public const FLAG_IGNORE_MODE       = 1 << 1;
     public const FLAG_IGNORE_DUPLICATES = 1 << 2;
     public const FLAG_NO_RETURN_ID      = 1 << 3;
+    public const FLAG_COPY_AS_INSERT    = 1 << 4;
 
     public const DEFAULT_ROWS = 1000;
 
@@ -135,6 +138,14 @@ class BulkInsert extends AbstractBulk
      */
     private function executePartial(int $flags, array $values): ?string
     {
+        if ($flags & self::FLAG_COPY_AS_INSERT) {
+            if (!$this->manager->getConnection()->getDatabasePlatform() instanceof PostgreSqlPlatform) {
+                throw new WrongPlatformException('COPY suppoted only by postgresql platform.');
+            }
+
+            return $this->executePartialCopy($flags, $values);
+        }
+
         $fields = $this->getAllUsedFields($values);
 
         $query = \sprintf(
@@ -164,6 +175,59 @@ class BulkInsert extends AbstractBulk
         }
 
         $stmt->execute();
+
+        $noLastId = ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID || $this->metadata->getGenerator() !== null;
+
+        return $noLastId ? null : $this->manager->getConnection()->lastInsertId();
+    }
+
+    /**
+     * Executes insert to database by COPY statement. Works in PostgreSQL only.
+     *
+     * @param int   $flags
+     * @param array $values
+     *
+     * @return string|null
+     */
+    private function executePartialCopy(int $flags, array $values): ?string
+    {
+        $conn = $this->manager->getConnection();
+        $fields = $this->getAllUsedFields($values);
+
+        $query = \sprintf(
+            "COPY public.%s (%s) FROM stdin",
+            $this->escape($this->metadata->getTable()),
+            \implode(', ', \array_map(
+                function (string $column) {
+                    return $this->escape($this->metadata->getField($column)->getName());
+                },
+                $fields
+            ))
+        );
+
+        $conn->executeQuery($query);
+        $query = '';
+
+        $fieldsCount = \count($fields) - 1;
+
+        foreach ($values as $row) {
+            foreach ($fields as $index => $name) {
+                $value = $row[$name] ?? null;
+                if ($this->metadata->getIdField() === $name && ($generate = $this->metadata->getGenerator())) {
+                    $value = $generate->generateBulk($this->manager, $this->class, $row);
+                }
+
+                $query .= $value . ($index < $fieldsCount ? "\t" : '');
+            }
+            $conn->executeQuery($query);
+        }
+
+        $conn->executeQuery("\.");
+
+        $this
+            ->manager
+            ->getConnection()
+            ->executeQuery($query);
 
         $noLastId = ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID || $this->metadata->getGenerator() !== null;
 
