@@ -263,6 +263,10 @@ class BulkUpdate extends AbstractBulk
             return 'NULL';
         }
         if (is_numeric($value)) {
+            if(\is_float($value)) {
+                return $value;       
+            }
+            
             if (\strpos((string) $value, '.') !== false || \strpos((string) $value, ',') !== false) {
                 return (float) $value;
             }
