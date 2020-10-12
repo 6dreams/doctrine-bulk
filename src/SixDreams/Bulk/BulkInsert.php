@@ -71,7 +71,7 @@ class BulkInsert extends AbstractBulk
         foreach ($this->metadata->getFields() as $field => $column) {
             $value = $this->getJoinedEntityValue(
                 $column,
-                $this->getClassProperty($this->reflection, $field)->getValue($entity),
+                $this->getClassValue($this->reflection, $field, $entity),
                 $field
             );
 
