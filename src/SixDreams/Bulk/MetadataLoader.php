@@ -49,7 +49,11 @@ final class MetadataLoader
         $dmeta->setIdField($id);
 
         foreach ($metadata->fieldMappings as $field => $mapping) {
-            $dmeta->addField($field, new ColumnMetadata($mapping['columnName'], $mapping['type'], $field === $id ? true : (bool) $mapping['nullable']));
+            // if ->nullable() is not called doctrine does not include the 'nullable' key,
+            // default to doctrines default of false, otherwise get the key
+            $nullableKeyExists = array_key_exists('nullable', $mapping);
+            $nullable = $field === $id ? true : ($nullableKeyExists && (bool) $mapping['nullable']);
+            $dmeta->addField($field, new ColumnMetadata($mapping['columnName'], $mapping['type'], $nullable));
         }
 
         $generator = $metadata->customGeneratorDefinition['class'] ?? null;
