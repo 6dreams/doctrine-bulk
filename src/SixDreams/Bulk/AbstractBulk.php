@@ -74,6 +74,47 @@ abstract class AbstractBulk
     }
 
     /**
+     * Get the value of a property from a class or subclass.
+     *
+     * @param \ReflectionClass $class
+     * @param string           $name
+     * @param mixed            $object
+     *
+     * @return mixed
+     *
+     * @throws FieldNotFoundException
+     */
+    protected function getClassValue(\ReflectionClass $class, string $name, $object)
+    {
+        // Embeded properties are in dot notaion
+        if (str_contains($name, '.'))
+        {
+            $parts = explode('.', $name);
+            $value = $this->getClassValue($class, $parts[0], $object);
+            for ($i = 1; $i < count($parts); ++$i)
+            {
+                $value = $this->getClassValue(new \ReflectionClass($value), $parts[$i], $value);
+            }
+
+            return $value;
+        }
+
+        if ($class->hasProperty($name)) {
+            $property = $class->getProperty($name);
+            $property->setAccessible(true);
+
+            return $property->getValue($object);
+        }
+
+        $subClass = $class->getParentClass();
+        if (!$class) {
+            throw new FieldNotFoundException($class->getName(), $name);
+        }
+
+        return $this->getClassValue($subClass, $name, $object);
+    }
+
+    /**
      * Get all fields used in request.
      *
      * @param array $values

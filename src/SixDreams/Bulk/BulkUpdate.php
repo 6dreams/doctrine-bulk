@@ -114,7 +114,7 @@ class BulkUpdate extends AbstractBulk
         $data = $flat = [];
         foreach ($this->metadata->getFields() as $field => $column) {
             if ($field === $this->whereField) {
-                $where = $this->getClassProperty($this->reflection, $field)->getValue($entity);
+                $where = $this->getClassValue($this->reflection, $field, $entity);
                 continue;
             }
             if ($fields && !\array_key_exists($field, $fields)) {
@@ -122,7 +122,7 @@ class BulkUpdate extends AbstractBulk
             }
             $value = $this->getJoinedEntityValue(
                 $column,
-                $this->getClassProperty($this->reflection, $field)->getValue($entity),
+                $this->getClassValue($this->reflection, $field, $entity),
                 $field
             );
             $data[$column->getName()] = [$value, $column];
