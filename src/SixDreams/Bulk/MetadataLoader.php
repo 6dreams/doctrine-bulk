@@ -74,9 +74,11 @@ final class MetadataLoader
             if (!\count($column)) {
                 continue; // looks broken...
             }
+            // ONE_TO_ONE  does not have the 'nullable' key, but creates tables that are nullable
+            $nullable = ($association['type'] === ClassMetadataInfo::ONE_TO_ONE || (bool) $column['nullable']);
             $dmeta->addField(
                 $association['fieldName'],
-                (new JoinColumnMetadata($column['name'], '', (bool) $column['nullable']))
+                (new JoinColumnMetadata($column['name'], '', $nullable))
                     ->setReferenced($column['referencedColumnName'])
             );
         }
