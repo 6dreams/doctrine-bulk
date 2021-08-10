@@ -1,5 +1,5 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace SixDreams\DTO;
 
@@ -16,6 +16,8 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
 
     /** @var bool */
     private $nullable;
+    private bool $hasDefault;
+    private mixed $default;
 
     /**
      * ColumnMetadata constructor.
@@ -23,12 +25,16 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
      * @param string $name
      * @param string $type
      * @param bool   $nullable
+     * @param bool   $hasDefault
+     * @param mixed  $default
      */
-    public function __construct(string $name, string $type, bool $nullable = true)
+    public function __construct(string $name, string $type, bool $nullable, bool $hasDefault, mixed $default)
     {
-        $this->name     = $name;
-        $this->type     = $type;
+        $this->name = $name;
+        $this->type = $type;
         $this->nullable = $nullable;
+        $this->hasDefault = $hasDefault;
+        $this->default = $default;
     }
 
     /**
@@ -36,7 +42,7 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
      *
      * @return string
      */
-    public function getName(): string
+    public function getName() : string
     {
         return $this->name;
     }
@@ -46,9 +52,19 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
      *
      * @return bool
      */
-    public function isNullable(): bool
+    public function isNullable() : bool
     {
         return $this->nullable;
+    }
+
+    public function hasDefault() : bool
+    {
+        return $this->hasDefault;
+    }
+
+    public function default() : mixed
+    {
+        return $this->default;
     }
 
     /**
@@ -56,7 +72,7 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
      *
      * @return string
      */
-    public function getType(): string
+    public function getType() : string
     {
         return $this->type;
     }

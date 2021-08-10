@@ -11,6 +11,7 @@ use SixDreams\DTO\ColumnMetadataInterface;
 use SixDreams\Exceptions\CannotChangeWhereException;
 use SixDreams\Exceptions\FieldNotFoundException;
 use SixDreams\Exceptions\NullValueException;
+use SixDreams\Exceptions\ValueNotInitialisedException;
 use SixDreams\Exceptions\WrongEntityException;
 
 /**
@@ -110,21 +111,28 @@ class BulkUpdate extends AbstractBulk
 
         $fields = $fields ? \array_flip($fields) : null;
 
-        $where = null;
+        $whereClassValue = null;
         $data = $flat = [];
         foreach ($this->metadata->getFields() as $field => $column) {
             if ($field === $this->whereField) {
-                $where = $this->getClassValue($this->reflection, $field, $entity);
+                $whereClassValue = $this->getClassValue($this->reflection, $field, $entity);
                 continue;
             }
             if ($fields && !\array_key_exists($field, $fields)) {
                 continue;
             }
-            $value = $this->getJoinedEntityValue(
+            $classValue = $this->getJoinedEntityValue(
                 $column,
                 $this->getClassValue($this->reflection, $field, $entity),
                 $field
             );
+
+            if (!$classValue->isInitialised())
+            {
+                throw new ValueNotInitialisedException($this->class, $field);
+            }
+
+            $value = $classValue->value();
             $data[$column->getName()] = [$value, $column];
             $flat[$column->getName()] = $value;
             if (null === $value && !$column->isNullable()) {
@@ -133,15 +141,31 @@ class BulkUpdate extends AbstractBulk
         }
 
         if (\count($data)) {
-            $generator = $this->metadata->getGenerator();
-            if ($generator && null === $where) {
-                $where = $generator->generateBulk($this->manager, $this->class, $flat);
-            }
-
+            $where = $this->getWhere($whereClassValue, $this->manager, $this->class, $flat);
             $this->values[$where] = $data;
         }
 
         return $this;
+    }
+
+    private function getWhere(?ClassValue $whereClassValue, EntityManagerInterface $manager, srting $class, $flat) : mixed
+    {
+        if ($whereClassValue === null)
+        {
+            // id not provided, or does not exist we must generate clased based on values
+            $generator = $this->metadata->getGenerator();
+            return $generator->generateBulk($this->manager, $this->class, $flat);
+        }
+
+        if (!$whereClassValue->isInitialised())
+        {
+            throw new ValueNotInitialisedException($class, $this->whereField);
+        }
+
+        // likely a string|int|null at this point, should we validate this?
+        // need to be compliant with values accepted in simpleValue
+        // see getSQL $whenEsc = $this->simpleValue($when, $platform);
+        return $whereClassValue->value();
     }
 
     /**
@@ -264,9 +288,9 @@ class BulkUpdate extends AbstractBulk
         }
         if (is_numeric($value)) {
             if(\is_float($value)) {
-                return $value;       
+                return $value;
             }
-            
+
             if (\strpos((string) $value, '.') !== false || \strpos((string) $value, ',') !== false) {
                 return (float) $value;
             }

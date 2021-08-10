@@ -23,6 +23,20 @@ interface ColumnMetadataInterface
     public function isNullable(): bool;
 
     /**
+     * Return true, if column has a default.
+     *
+     * @return bool
+     */
+    public function hasDefault(): bool;
+
+    /**
+     * Return the default value
+     *
+     * @return bool
+     */
+    public function default(): mixed;
+
+    /**
      * Returns column type.
      *
      * @return string

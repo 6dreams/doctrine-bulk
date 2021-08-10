@@ -80,30 +80,44 @@ abstract class AbstractBulk
      * @param string           $name
      * @param mixed            $object
      *
-     * @return mixed
+     * @return ClassValue
      *
      * @throws FieldNotFoundException
      */
-    protected function getClassValue(\ReflectionClass $class, string $name, $object)
+    protected function getClassValue(\ReflectionClass $class, string $name, $object): ClassValue
     {
         // Embeded properties are in dot notaion
         if (str_contains($name, '.'))
         {
             $parts = explode('.', $name);
-            $value = $this->getClassValue($class, $parts[0], $object);
+            $classValue = $this->getClassValue($class, $parts[0], $object);
+            if (!$classValue->isInitialised())
+            {
+                return $classValue;
+            }
             for ($i = 1; $i < count($parts); ++$i)
             {
-                $value = $this->getClassValue(new \ReflectionClass($value), $parts[$i], $value);
+                $oldValue = $classValue->value();
+                $classValue = $this->getClassValue(new \ReflectionClass($oldValue), $parts[$i], $oldValue);
+                if (!$classValue->isInitialised())
+                {
+                    return $classValue;
+                }
             }
 
-            return $value;
+            return $classValue;
         }
 
-        if ($class->hasProperty($name)) {
+        if ($class->hasProperty($name))
+        {
             $property = $class->getProperty($name);
             $property->setAccessible(true);
+            if (!$property->isInitialized($object))
+            {
+                return ClassValue::notInitialised();
+            }
 
-            return $property->getValue($object);
+            return ClassValue::initialised($property->getValue($object));
         }
 
         $subClass = $class->getParentClass();
@@ -158,29 +172,44 @@ abstract class AbstractBulk
      * Extract joined entity value, if entity is really joined.
      *
      * @param ColumnMetadataInterface $column
-     * @param object|null             $value
+     * @param ClassValue              $classValue
      * @param string                  $field
      *
-     * @return mixed
+     * @return ClassValue
      *
      * @throws FieldNotFoundException
      */
-    protected function getJoinedEntityValue(ColumnMetadataInterface $column, $value, string $field)
+    protected function getJoinedEntityValue(ColumnMetadataInterface $column, ClassValue $classValue, string $field) : ClassValue
     {
-        if (($column instanceof JoinColumnMetadata) && null !== $value && \is_object($value)) {
-            $subPropName = $field . '.' . $column->getReferenced();
-            if (!\array_key_exists($subPropName, $this->cachedReflProps)) {
-                $this->cachedReflProps[$subPropName] = $this->getClassProperty(
-                    new \ReflectionClass($value),
-                    $column->getReferenced()
-                );
-                $this->cachedReflProps[$subPropName]->setAccessible(true);
-            }
-
-            $value = $this->cachedReflProps[$subPropName]->getValue($value);
+        if (!$classValue->isInitialised())
+        {
+            return $classValue;
         }
 
-        return $value;
+        $value = $classValue->value();
+
+        if (!($column instanceof JoinColumnMetadata) || $value === null || !is_object($value))
+        {
+            return $classValue;
+        }
+
+        $subPropName = $field . '.' . $column->getReferenced();
+        if (!\array_key_exists($subPropName, $this->cachedReflProps))
+        {
+            $this->cachedReflProps[$subPropName] = $this->getClassProperty(
+                new \ReflectionClass($value),
+                $column->getReferenced()
+            );
+            $this->cachedReflProps[$subPropName]->setAccessible(true);
+        }
+
+        $prop = $this->cachedReflProps[$subPropName];
+        if (!$prop->isInitialized($value))
+        {
+            return ClassValue::notInitialised();
+        }
+
+        return ClassValue::initialised($prop->getValue($value));
     }
 
     /**
