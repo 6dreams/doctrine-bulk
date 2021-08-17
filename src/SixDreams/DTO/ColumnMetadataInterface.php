@@ -34,7 +34,7 @@ interface ColumnMetadataInterface
      *
      * @return bool
      */
-    public function default(): mixed;
+    public function getDefault(): mixed;
 
     /**
      * Returns column type.

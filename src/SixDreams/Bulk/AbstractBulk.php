@@ -97,7 +97,7 @@ abstract class AbstractBulk
             }
             for ($i = 1; $i < count($parts); ++$i)
             {
-                $oldValue = $classValue->value();
+                $oldValue = $classValue->getValue();
                 $classValue = $this->getClassValue(new \ReflectionClass($oldValue), $parts[$i], $oldValue);
                 if (!$classValue->isInitialised())
                 {
@@ -186,7 +186,7 @@ abstract class AbstractBulk
             return $classValue;
         }
 
-        $value = $classValue->value();
+        $value = $classValue->getValue();
 
         if (!($column instanceof JoinColumnMetadata) || $value === null || !is_object($value))
         {

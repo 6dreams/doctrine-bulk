@@ -7,6 +7,6 @@ final class ValueNotInitialisedException extends SixDreamsException
 {
     public function __construct(string $name, string $class)
     {
-        parent::__construct(\sprintf('Must initialised field "%s" of "%s"', $name, $class));
+        parent::__construct(\sprintf('Must initialise field "%s" of "%s"', $name, $class));
     }
 }

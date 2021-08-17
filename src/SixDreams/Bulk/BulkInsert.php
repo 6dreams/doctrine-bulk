@@ -83,13 +83,11 @@ class BulkInsert extends AbstractBulk
                     throw new NoDefaultValueException($this->class, $field);
                 }
 
-                // todo possibly use DEFAULT keyword (need some placeholder in $ret,
-                // currently it just handles types)
-                $ret[$field] = $column->default();
+                $ret[$field] = $column->getDefault();
                 continue;
             }
 
-            $value = $classValue->value();
+            $value = $classValue->getValue();
             if ($value === null && !$column->isNullable()) {
                 throw new NullValueException($this->class, $field);
             }

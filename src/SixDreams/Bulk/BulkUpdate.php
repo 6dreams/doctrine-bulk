@@ -132,7 +132,7 @@ class BulkUpdate extends AbstractBulk
                 throw new ValueNotInitialisedException($this->class, $field);
             }
 
-            $value = $classValue->value();
+            $value = $classValue->getValue();
             $data[$column->getName()] = [$value, $column];
             $flat[$column->getName()] = $value;
             if (null === $value && !$column->isNullable()) {
@@ -165,7 +165,7 @@ class BulkUpdate extends AbstractBulk
         // likely a string|int|null at this point, should we validate this?
         // need to be compliant with values accepted in simpleValue
         // see getSQL $whenEsc = $this->simpleValue($when, $platform);
-        return $whereClassValue->value();
+        return $whereClassValue->getValue();
     }
 
     /**
