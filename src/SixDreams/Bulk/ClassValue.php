@@ -4,11 +4,20 @@ declare(strict_types = 1);
 namespace SixDreams\Bulk;
 
 /**
- * class ClassValue
+ * Helper class for storing the value of a property from a class or subclass.
  */
 class ClassValue
 {
+    /**
+     * Set to true when the property is initialised.
+     * See https://www.php.net/manual/en/reflectionproperty.isinitialized.php
+     */
     private bool $initialised;
+
+    /**
+     * The value of the classes property
+     * See https://www.php.net/manual/en/reflectionproperty.getvalue.php
+     */
     private mixed $value;
 
     /**
