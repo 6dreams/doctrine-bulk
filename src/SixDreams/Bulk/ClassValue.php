@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace SixDreams\Bulk;
 
@@ -8,10 +8,7 @@ namespace SixDreams\Bulk;
  */
 class ClassValue
 {
-    /** @var bool */
     private bool $initialised;
-
-    /** @var mixed */
     private mixed $value;
 
     /**
