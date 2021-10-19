@@ -5,6 +5,7 @@ namespace SixDreams\Bulk;
 
 use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
 use SixDreams\Exceptions\FieldNotFoundException;
+use SixDreams\Exceptions\NoDefaultValueException;
 use SixDreams\Exceptions\NullValueException;
 use SixDreams\Exceptions\WrongEntityException;
 use SixDreams\Exceptions\WrongPlatformException;
@@ -69,13 +70,25 @@ class BulkInsert extends AbstractBulk
 
         $ret = [];
         foreach ($this->metadata->getFields() as $field => $column) {
-            $value = $this->getJoinedEntityValue(
+            $classValue = $this->getJoinedEntityValue(
                 $column,
                 $this->getClassValue($this->reflection, $field, $entity),
                 $field
             );
 
-            if (null === $value && !$column->isNullable()) {
+            if (!$classValue->isInitialised())
+            {
+                if (!$column->hasDefault())
+                {
+                    throw new NoDefaultValueException($this->class, $field);
+                }
+
+                $ret[$field] = $column->getDefault();
+                continue;
+            }
+
+            $value = $classValue->getValue();
+            if ($value === null && !$column->isNullable()) {
                 throw new NullValueException($this->class, $field);
             }
 
