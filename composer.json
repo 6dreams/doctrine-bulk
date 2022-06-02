@@ -1,5 +1,5 @@
 {
-  "name": "6dreams/doctrine-bulk",
+  "name": "taxaos/doctrine-bulk",
   "description": "Simple classes that allows bulk operations on doctrine entities.",
   "type": "library",
   "license": "MIT",
