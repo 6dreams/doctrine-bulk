@@ -148,7 +148,7 @@ class BulkUpdate extends AbstractBulk
         return $this;
     }
 
-    private function getWhere(?ClassValue $whereClassValue, EntityManagerInterface $manager, srting $class, $flat) : mixed
+    private function getWhere(?ClassValue $whereClassValue, EntityManagerInterface $manager, string $class, $flat) : mixed
     {
         if ($whereClassValue === null)
         {
