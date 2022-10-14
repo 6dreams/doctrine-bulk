@@ -14,27 +14,16 @@ use Doctrine\ORM\Mapping as ORM;
 class Book
 {
     /**
-     * @var int
-     *
      * @ORM\Column(name="id", type="integer", nullable=false, options={"unsigned"=true})
      * @ORM\Id
      * @ORM\GeneratedValue(strategy="IDENTITY")
      */
-    protected $id;
+    protected int $id;
 
     /**
-     * @var string
-     *
      * @ORM\Column(name="title", type="string", nullable=false)
      */
-    protected $title;
-
-    /**
-     * @var int
-     *
-     * @ORM\Column(name="short_text", type="string", nullable=true)
-     */
-    protected $shortText;
+    protected string $title;
 
     /**
      * @var Author
@@ -44,7 +33,7 @@ class Book
      *   @ORM\JoinColumn(name="author_id", referencedColumnName="id", nullable=true)
      * })
      */
-    protected $author;
+    protected Author $author;
 
     /**
      * Setter for Id.

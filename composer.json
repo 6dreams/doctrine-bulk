@@ -18,17 +18,21 @@
         "doctrine/orm": "^2.5",
         "ext-pdo": "*",
         "symfony/cache": "^v3.4.47",
-        "doctrine/annotations": "^1.13.3"
+        "doctrine/annotations": "^1.13.3",
+        "phpstan/phpstan": "^1.8"
     },
     "autoload": {
         "psr-4": {
-            "SixDreams\\": "src/SixDreams",
+            "Taxaos\\": "src/Taxaos",
             "Tests\\": "tests/"
         }
     },
     "scripts": {
         "test": [
             "phpunit -c phpunit.build.xml --testdox --colors=always"
+        ],
+        "stan": [
+            "vendor/bin/phpstan analyse src tests --level 8"
         ]
 
     },

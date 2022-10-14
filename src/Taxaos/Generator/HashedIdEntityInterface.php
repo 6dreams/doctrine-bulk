@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Generator;
+namespace Taxaos\Generator;
 
 /**
  * Class HashesIdEntityInterface

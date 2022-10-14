@@ -1,12 +1,12 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Exceptions;
+namespace Taxaos\Exceptions;
 
 /**
  * Class FieldNotFoundException
  */
-final class FieldNotFoundException extends SixDreamsException
+final class FieldNotFoundException extends TaxaosException
 {
     /**
      * FieldNotFoundException constructor.
@@ -16,6 +16,6 @@ final class FieldNotFoundException extends SixDreamsException
      */
     public function __construct(string $entity, string $field)
     {
-        parent::__construct(\sprintf('Field "%s" not found in "%s"!', $field, $entity));
+        parent::__construct(sprintf('Field "%s" not found in "%s"!', $field, $entity));
     }
 }

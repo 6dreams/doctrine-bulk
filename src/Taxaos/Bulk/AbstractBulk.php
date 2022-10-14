@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Bulk;
+namespace Taxaos\Bulk;
 
 use Doctrine\DBAL\Driver\Statement;
 use Doctrine\DBAL\Schema\Identifier;
@@ -10,14 +10,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use PDO;
 use ReflectionClass;
 use ReflectionProperty;
-use SixDreams\DTO\ColumnMetadataInterface;
-use SixDreams\DTO\JoinColumnMetadata;
-use SixDreams\DTO\Metadata;
-use SixDreams\Exceptions\FieldNotFoundException;
-use function array_flip;
-use function array_key_exists;
-use function array_keys;
-use function array_merge;
+use Taxaos\DTO\ColumnMetadataInterface;
+use Taxaos\DTO\JoinColumnMetadata;
+use Taxaos\DTO\Metadata;
+use Taxaos\Exceptions\FieldNotFoundException;
 
 /**
  * Class AbstractBulk

@@ -1,23 +1,24 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace SixDreams\DTO;
+namespace Taxaos\DTO;
 
-use SixDreams\Generator\BulkGeneratorInterface;
-use function array_key_exists;
+use Taxaos\Generator\BulkGeneratorInterface;
 
 /**
  * Class MetadataDto
  */
 final class Metadata
 {
-    private string|null $table;
+    private ?string $table;
 
     /** @var ColumnMetadataInterface[] */
     private array $fields = [];
 
-    /** @var string */
-    private string $idField;
+    /**
+     * @var array<int, string>
+     */
+    private array $idFields = [];
 
     /** @var BulkGeneratorInterface|null */
     private ?BulkGeneratorInterface $generator = null;
@@ -32,23 +33,11 @@ final class Metadata
         $this->table = $table;
     }
 
-    /**
-     * Getter for Table
-     *
-     * @return string
-     */
-    public function getTable(): string
+    public function getTable(): ?string
     {
         return $this->table;
     }
 
-    /**
-     * Setter for Table.
-     *
-     * @param string $table
-     *
-     * @return Metadata
-     */
     public function setTable(string $table): Metadata
     {
         $this->table = $table;
@@ -56,14 +45,6 @@ final class Metadata
         return $this;
     }
 
-    /**
-     * Add column.
-     *
-     * @param string                 $field
-     * @param ColumnMetadataInterface $column
-     *
-     * @return Metadata
-     */
     public function addField(string $field, ColumnMetadataInterface $column): Metadata
     {
         $this->fields[$field] = $column;
@@ -72,8 +53,6 @@ final class Metadata
     }
 
     /**
-     * Getter for Fields
-     *
      * @return ColumnMetadataInterface[]
      */
     public function getFields(): array
@@ -106,46 +85,29 @@ final class Metadata
     }
 
     /**
-     * Getter for IdField
-     *
-     * @return string
+     * @return array<int, string>
      */
-    public function getIdField(): string
+    public function getIdFields(): array
     {
-        return $this->idField;
+        return $this->idFields;
     }
 
     /**
-     * Setter for IdField.
-     *
-     * @param string $idField
-     *
-     * @return Metadata
+     * @param array<int, string> $idFields
+     * @return $this
      */
-    public function setIdField(string $idField): Metadata
+    public function setIdFields(array $idFields): Metadata
     {
-        $this->idField = $idField;
+        $this->idFields = $idFields;
 
         return $this;
     }
 
-    /**
-     * Getter for Generator
-     *
-     * @return BulkGeneratorInterface|null
-     */
     public function getGenerator(): ?BulkGeneratorInterface
     {
         return $this->generator;
     }
 
-    /**
-     * Setter for Generator.
-     *
-     * @param BulkGeneratorInterface|null $generator
-     *
-     * @return Metadata
-     */
     public function setGenerator(?BulkGeneratorInterface $generator): Metadata
     {
         $this->generator = $generator;

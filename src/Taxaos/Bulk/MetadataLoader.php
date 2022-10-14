@@ -1,19 +1,16 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace SixDreams\Bulk;
+namespace Taxaos\Bulk;
 
 use Doctrine\ORM\Id\AbstractIdGenerator;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
-use SixDreams\DTO\ColumnMetadata;
-use SixDreams\DTO\JoinColumnMetadata;
-use SixDreams\DTO\Metadata;
-use SixDreams\Exceptions\NotSupportedIdGeneratorException;
-use SixDreams\Generator\BulkGeneratorInterface;
-use function array_filter;
-use function array_key_exists;
-use function count;
+use Taxaos\DTO\ColumnMetadata;
+use Taxaos\DTO\JoinColumnMetadata;
+use Taxaos\DTO\Metadata;
+use Taxaos\Exceptions\NotSupportedIdGeneratorException;
+use Taxaos\Generator\BulkGeneratorInterface;
 
 /**
  * Class MetadataLoader
@@ -46,21 +43,23 @@ final class MetadataLoader
         if (array_key_exists($class, self::$metadata)) {
             return self::$metadata[$class];
         }
+
         $dmeta = new Metadata($metadata->getTableName());
 
-        $id = $metadata->getSingleIdentifierFieldName();
-        $dmeta->setIdField($id);
+        $ids = $metadata->getIdentifierFieldNames();
+        $dmeta->setIdFields($ids);
 
         foreach ($metadata->fieldMappings as $field => $mapping) {
             // if ->nullable() is not called doctrine does not include the 'nullable' key,
             // default to doctrines default of false, otherwise get the key
+            $isIdField = in_array($field, $ids, true);
             $nullableKeyExists = array_key_exists('nullable', $mapping);
-            $nullable = $field === $id ? true : ($nullableKeyExists && (bool) $mapping['nullable']);
+            $nullable = $isIdField || ($nullableKeyExists && (bool)$mapping['nullable']);
             // ids are auto increment, so allow default
-            $hasDefault = $field === $id ? true : (
+            $hasDefault = $isIdField ? true : (
             array_key_exists('options', $mapping) ? array_key_exists('default', $mapping['options']) : false
             );
-            $defaultValue = $field === $id ? null : ($hasDefault ? $mapping['options']['default'] : null);
+            $defaultValue = $isIdField ? null : ($hasDefault ? $mapping['options']['default'] : null);
             $dmeta->addField($field, new ColumnMetadata($mapping['columnName'], $mapping['type'], $nullable, $hasDefault, $defaultValue));
         }
 
@@ -83,7 +82,7 @@ final class MetadataLoader
                 continue; // looks broken...
             }
             // ONE_TO_ONE  does not have the 'nullable' key, but creates tables that are nullable
-            $nullable = ($association['type'] === ClassMetadataInfo::ONE_TO_ONE || (bool) $column['nullable']);
+            $nullable = ($association['type'] === ClassMetadataInfo::ONE_TO_ONE || $column['nullable']);
             $hasDefault = false; // joins can never have a default relation
             $defaultValue = null;
             $dmeta->addField(

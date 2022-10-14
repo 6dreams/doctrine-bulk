@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace SixDreams\DTO;
+namespace Taxaos\DTO;
 
 /**
  * Contains information about table column.
