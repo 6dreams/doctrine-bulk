@@ -19,7 +19,7 @@
         "ext-pdo": "*",
         "symfony/cache": "^v5.4.0",
         "doctrine/annotations": "^1.13.2",
-        "phpstan/phpstan": "^1.8"
+        "phpstan/phpstan": "^1.7.15"
     },
     "autoload": {
         "psr-4": {
