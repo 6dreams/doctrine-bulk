@@ -69,7 +69,7 @@ abstract class AbstractBulk
         }
 
         $subClass = $class->getParentClass();
-        if (!$class) {
+        if (!$subClass) {
             throw new FieldNotFoundException($class->getName(), $name);
         }
 
@@ -191,7 +191,7 @@ abstract class AbstractBulk
 
         $value = $classValue->getValue();
 
-        if (!($column instanceof JoinColumnMetadata) || $value === null || !is_object($value))
+        if (!($column instanceof JoinColumnMetadata) || !is_object($value))
         {
             return $classValue;
         }

@@ -8,15 +8,6 @@ namespace Taxaos\DTO;
  */
 abstract class AbstractColumnMetadata implements ColumnMetadataInterface
 {
-    private string $name;
-
-    private string $type;
-
-    private bool $nullable;
-
-    private bool $hasDefault;
-
-    private mixed $default;
 
     /**
      * ColumnMetadata constructor.
@@ -27,13 +18,8 @@ abstract class AbstractColumnMetadata implements ColumnMetadataInterface
      * @param bool $hasDefault
      * @param mixed $default
      */
-    public function __construct(string $name, string $type, bool $nullable, bool $hasDefault, mixed $default)
+    public function __construct(private string $name, private string $type, private bool $nullable, private bool $hasDefault, private mixed $default)
     {
-        $this->name = $name;
-        $this->type = $type;
-        $this->nullable = $nullable;
-        $this->hasDefault = $hasDefault;
-        $this->default = $default;
     }
 
     /**

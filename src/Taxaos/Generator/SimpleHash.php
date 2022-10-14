@@ -1,5 +1,5 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Taxaos\Generator;
 
@@ -22,8 +22,8 @@ final class SimpleHash
      *
      * @return string
      */
-    public static function create(array $data)
+    public static function create(array $data): string
     {
-        return base_convert(\md5(\implode('_', $data)), 16, 36);
+        return base_convert(md5(implode('_', $data)), 16, 36);
     }
 }

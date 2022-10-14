@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Taxaos\Bulk;
 
-use Doctrine\ORM\Id\AbstractIdGenerator;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Taxaos\DTO\ColumnMetadata;
@@ -44,10 +43,10 @@ final class MetadataLoader
             return self::$metadata[$class];
         }
 
-        $dmeta = new Metadata($metadata->getTableName());
+        $bulkMetadata = new Metadata($metadata->getTableName());
 
         $ids = $metadata->getIdentifierFieldNames();
-        $dmeta->setIdFields($ids);
+        $bulkMetadata->setIdFields($ids);
 
         foreach ($metadata->fieldMappings as $field => $mapping) {
             // if ->nullable() is not called doctrine does not include the 'nullable' key,
@@ -56,23 +55,36 @@ final class MetadataLoader
             $nullableKeyExists = array_key_exists('nullable', $mapping);
             $nullable = $isIdField || ($nullableKeyExists && (bool)$mapping['nullable']);
             // ids are auto increment, so allow default
-            $hasDefault = $isIdField ? true : (
-            array_key_exists('options', $mapping) ? array_key_exists('default', $mapping['options']) : false
+            $hasDefault = $isIdField || (
+                    array_key_exists('options', $mapping) && array_key_exists('default', $mapping['options'])
+                );
+
+            $defaultValue = null;
+            if (!$isIdField && $hasDefault) {
+                $defaultValue = $mapping['options']['default'];
+            }
+
+            $bulkMetadata->addField(
+                $field,
+                new ColumnMetadata(
+                    $mapping['columnName'],
+                    $mapping['type'],
+                    $nullable,
+                    $hasDefault,
+                    $defaultValue)
             );
-            $defaultValue = $isIdField ? null : ($hasDefault ? $mapping['options']['default'] : null);
-            $dmeta->addField($field, new ColumnMetadata($mapping['columnName'], $mapping['type'], $nullable, $hasDefault, $defaultValue));
         }
 
         $generator = $metadata->customGeneratorDefinition['class'] ?? null;
         if ($generator) {
             $generator = new $generator();
-            if (!($generator instanceof BulkGeneratorInterface) || !($generator instanceof AbstractIdGenerator)) {
+            if (!($generator instanceof BulkGeneratorInterface)) {
                 throw new NotSupportedIdGeneratorException($generator);
             }
-            $dmeta->setGenerator($generator);
+            $bulkMetadata->setGenerator($generator);
         }
 
-        $associations = array_filter($metadata->getAssociationMappings(), function (array $association) {
+        $associations = array_filter($metadata->getAssociationMappings(), static function (array $association) {
             return array_key_exists($association['type'], self::SUPPORTED_JOINS);
         });
 
@@ -82,18 +94,24 @@ final class MetadataLoader
                 continue; // looks broken...
             }
             // ONE_TO_ONE  does not have the 'nullable' key, but creates tables that are nullable
-            $nullable = ($association['type'] === ClassMetadataInfo::ONE_TO_ONE || $column['nullable']);
-            $hasDefault = false; // joins can never have a default relation
+            $nullable = $association['type'] === ClassMetadataInfo::ONE_TO_ONE || $column['nullable'];
             $defaultValue = null;
-            $dmeta->addField(
+            $joinColumnMetadata = new JoinColumnMetadata(
+                $column['name'],
+                '',
+                $nullable,
+                false, // joins can never have a default relation
+                $defaultValue
+            );
+
+            $bulkMetadata->addField(
                 $association['fieldName'],
-                (new JoinColumnMetadata($column['name'], '', $nullable, $hasDefault, $defaultValue))
-                    ->setReferenced($column['referencedColumnName'])
+                $joinColumnMetadata->setReferenced($column['referencedColumnName'])
             );
         }
 
-        self::$metadata[$class] = $dmeta;
+        self::$metadata[$class] = $bulkMetadata;
 
-        return $dmeta;
+        return $bulkMetadata;
     }
 }

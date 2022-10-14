@@ -10,8 +10,6 @@ use Taxaos\Generator\BulkGeneratorInterface;
  */
 final class Metadata
 {
-    private ?string $table;
-
     /** @var ColumnMetadataInterface[] */
     private array $fields = [];
 
@@ -20,17 +18,10 @@ final class Metadata
      */
     private array $idFields = [];
 
-    /** @var BulkGeneratorInterface|null */
     private ?BulkGeneratorInterface $generator = null;
 
-    /**
-     * MetadataDto constructor.
-     *
-     * @param string|null $table
-     */
-    public function __construct(?string $table = null)
+    public function __construct(private ?string $table = null)
     {
-        $this->table = $table;
     }
 
     public function getTable(): ?string

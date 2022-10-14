@@ -72,7 +72,7 @@ class Author implements HashedIdEntityInterface
     /**
      * @inheritdoc
      */
-    public function getHashGeneratorFieldValue(string $name, $value)
+    public function getHashGeneratorFieldValue(string $name, $value): mixed
     {
         return $value;
     }
