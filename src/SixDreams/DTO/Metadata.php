@@ -4,23 +4,23 @@ declare(strict_types = 1);
 namespace SixDreams\DTO;
 
 use SixDreams\Generator\BulkGeneratorInterface;
+use function array_key_exists;
 
 /**
  * Class MetadataDto
  */
 final class Metadata
 {
-    /** @var string */
-    private $table;
+    private string|null $table;
 
     /** @var ColumnMetadataInterface[] */
-    private $fields = [];
+    private array $fields = [];
 
     /** @var string */
-    private $idField;
+    private string $idField;
 
     /** @var BulkGeneratorInterface|null */
-    private $generator;
+    private ?BulkGeneratorInterface $generator = null;
 
     /**
      * MetadataDto constructor.
@@ -90,7 +90,7 @@ final class Metadata
      */
     public function hasField(string $name): bool
     {
-        return \array_key_exists($name, $this->fields);
+        return array_key_exists($name, $this->fields);
     }
 
     /**

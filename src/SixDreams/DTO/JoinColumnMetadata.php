@@ -8,8 +8,7 @@ namespace SixDreams\DTO;
  */
 final class JoinColumnMetadata extends AbstractColumnMetadata
 {
-    /** @var string */
-    private $referenced;
+    private string $referenced;
 
     /**
      * Setter for Referenced.

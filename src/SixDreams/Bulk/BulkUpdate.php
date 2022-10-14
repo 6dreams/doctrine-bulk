@@ -20,10 +20,10 @@ use SixDreams\Exceptions\WrongEntityException;
 class BulkUpdate extends AbstractBulk
 {
     /** @var array[] */
-    private $values = [];
+    private array $values = [];
 
     /** @var string */
-    private $whereField;
+    private string $whereField;
 
     /**
      * BulkUpdate constructor.

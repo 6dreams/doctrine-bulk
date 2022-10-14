@@ -11,6 +11,9 @@ use SixDreams\DTO\JoinColumnMetadata;
 use SixDreams\DTO\Metadata;
 use SixDreams\Exceptions\NotSupportedIdGeneratorException;
 use SixDreams\Generator\BulkGeneratorInterface;
+use function array_filter;
+use function array_key_exists;
+use function count;
 
 /**
  * Class MetadataLoader
@@ -18,7 +21,7 @@ use SixDreams\Generator\BulkGeneratorInterface;
 final class MetadataLoader
 {
     /** @var Metadata[] */
-    private static $metadata = [];
+    private static array $metadata = [];
 
     // Supported Join types.
     private const SUPPORTED_JOINS = [ClassMetadataInfo::ONE_TO_ONE => null, ClassMetadataInfo::MANY_TO_ONE => null];
@@ -40,7 +43,7 @@ final class MetadataLoader
     public static function load(ClassMetadata $metadata): Metadata
     {
         $class = $metadata->getName();
-        if (\array_key_exists($class, self::$metadata)) {
+        if (array_key_exists($class, self::$metadata)) {
             return self::$metadata[$class];
         }
         $dmeta = new Metadata($metadata->getTableName());
@@ -70,13 +73,13 @@ final class MetadataLoader
             $dmeta->setGenerator($generator);
         }
 
-        $associations = \array_filter($metadata->getAssociationMappings(), function (array $association) {
-            return \array_key_exists($association['type'], self::SUPPORTED_JOINS);
+        $associations = array_filter($metadata->getAssociationMappings(), function (array $association) {
+            return array_key_exists($association['type'], self::SUPPORTED_JOINS);
         });
 
         foreach ($associations as $association) {
             $column = $association['joinColumns'][0] ?? [];
-            if (!\count($column)) {
+            if (!count($column)) {
                 continue; // looks broken...
             }
             // ONE_TO_ONE  does not have the 'nullable' key, but creates tables that are nullable

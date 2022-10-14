@@ -8,19 +8,14 @@ namespace SixDreams\DTO;
  */
 abstract class AbstractColumnMetadata implements ColumnMetadataInterface
 {
-    /** @var string */
-    private $name;
+    private string $name;
 
-    /** @var string */
-    private $type;
+    private string $type;
 
-    /** @var bool */
-    private $nullable;
+    private bool $nullable;
 
-    /** @var bool */
     private bool $hasDefault;
 
-    /** @var mixed */
     private mixed $default;
 
     /**
