@@ -20,6 +20,8 @@ final class Metadata
 
     private ?BulkGeneratorInterface $generator = null;
 
+    private array $lifeCycleCallBacks;
+
     public function __construct(private ?string $table = null)
     {
     }
@@ -104,5 +106,18 @@ final class Metadata
         $this->generator = $generator;
 
         return $this;
+    }
+
+    public function getLifeCycleCallBacks(): array
+    {
+        return $this->lifeCycleCallBacks;
+    }
+
+    /**
+     * @param array $lifeCycleCallBacks
+     */
+    public function setLifeCycleCallBacks(array $lifeCycleCallBacks): void
+    {
+        $this->lifeCycleCallBacks = $lifeCycleCallBacks;
     }
 }

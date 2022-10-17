@@ -47,6 +47,7 @@ final class MetadataLoader
 
         $ids = $metadata->getIdentifierFieldNames();
         $bulkMetadata->setIdFields($ids);
+        $bulkMetadata->setLifeCycleCallBacks($metadata->lifecycleCallbacks);
 
         foreach ($metadata->fieldMappings as $field => $mapping) {
             // if ->nullable() is not called doctrine does not include the 'nullable' key,
@@ -63,7 +64,6 @@ final class MetadataLoader
             if (!$isIdField && $hasDefault) {
                 $defaultValue = $mapping['options']['default'];
             }
-
             $bulkMetadata->addField(
                 $field,
                 new ColumnMetadata(

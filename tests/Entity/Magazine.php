@@ -1,5 +1,5 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Tests\Entity;
 
@@ -10,9 +10,13 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * @ORM\Table(name="magazine")
  * @ORM\Entity
+ * @ORM\HasLifecycleCallbacks()
  */
 class Magazine
 {
+    use CreatedAtTrait;
+    use UpdatedAtTrait;
+
     /**
      * @ORM\Column(name="year", type="integer", nullable=false, options={"unsigned"=true})
      * @ORM\Id()

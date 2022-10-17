@@ -4,16 +4,20 @@ declare(strict_types = 1);
 namespace Taxaos\Bulk;
 
 use Doctrine\DBAL\Driver\Statement;
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Schema\Identifier;
+use Doctrine\DBAL\Types\ConversionException;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use PDO;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionProperty;
 use Taxaos\DTO\ColumnMetadataInterface;
 use Taxaos\DTO\JoinColumnMetadata;
 use Taxaos\DTO\Metadata;
 use Taxaos\Exceptions\FieldNotFoundException;
+use Taxaos\Exceptions\NotSupportedIdGeneratorException;
 
 /**
  * Class AbstractBulk
@@ -39,7 +43,9 @@ abstract class AbstractBulk
      * BulkQuery constructor.
      *
      * @param EntityManagerInterface $manager
-     * @param string                 $class
+     * @param string $class
+     * @throws ReflectionException
+     * @throws NotSupportedIdGeneratorException
      */
     public function __construct(EntityManagerInterface $manager, string $class)
     {
@@ -85,7 +91,7 @@ abstract class AbstractBulk
      *
      * @return ClassValue
      *
-     * @throws FieldNotFoundException
+     * @throws FieldNotFoundException|ReflectionException
      */
     protected function getClassValue(ReflectionClass $class, string $name, $object): ClassValue
     {
@@ -151,10 +157,12 @@ abstract class AbstractBulk
     /**
      * Bind value to statement.
      *
-     * @param Statement               $statement
-     * @param int|string              $index
+     * @param Statement $statement
+     * @param int|string $index
      * @param ColumnMetadataInterface $column
-     * @param mixed                   $value
+     * @param mixed $value
+     * @throws Exception
+     * @throws ConversionException
      */
     protected function bind(Statement $statement, $index, ColumnMetadataInterface $column, $value): void
     {
@@ -180,7 +188,7 @@ abstract class AbstractBulk
      *
      * @return ClassValue
      *
-     * @throws FieldNotFoundException
+     * @throws FieldNotFoundException|ReflectionException
      */
     protected function getJoinedEntityValue(ColumnMetadataInterface $column, ClassValue $classValue, string $field) : ClassValue
     {
@@ -221,6 +229,7 @@ abstract class AbstractBulk
      * @param string $name
      *
      * @return string
+     * @throws Exception
      */
     protected function escape(string $name): string
     {

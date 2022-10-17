@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace Taxaos\Bulk;
 
+use Doctrine\DBAL\Exception as DoctrineBaseException;
+use Doctrine\ORM\Events;
+use Doctrine\ORM\UnitOfWork;
+use InvalidArgumentException;
 use Taxaos\Exceptions\FieldNotFoundException;
 use Taxaos\Exceptions\NoDefaultValueException;
 use Taxaos\Exceptions\NullValueException;
@@ -66,6 +70,9 @@ class BulkUpsert extends AbstractBulk
         }
 
         $ret = [];
+
+        $this->callLifeCycleCallbackFunctionsIfDefined($entity);
+
         foreach ($this->metadata->getFields() as $field => $column) {
             $classValue = $this->getJoinedEntityValue(
                 $column,
@@ -102,6 +109,20 @@ class BulkUpsert extends AbstractBulk
         $this->values[] = $ret;
 
         return $this;
+    }
+
+    private function isNewObject($entity): bool
+    {
+        try {
+            return match ($this->manager->getUnitOfWork()->getEntityState($entity)) {
+                UnitOfWork::STATE_DETACHED, UnitOfWork::STATE_REMOVED, UnitOfWork::STATE_MANAGED => false,
+                UnitOfWork::STATE_NEW => true,
+                default => throw new InvalidArgumentException('Unexpected value'),
+            };
+        } catch (DoctrineBaseException $exception) {
+            return true;
+        }
+
     }
 
     /**
@@ -151,7 +172,7 @@ class BulkUpsert extends AbstractBulk
         $fields = $this->getAllUsedFields($values);
 
         $query = sprintf(
-            '%s INTO %s (%s) VALUES %s;',
+            '%s INTO %s (%s) VALUES %s ON DUPLICATE KEY UPDATE;',
             ($flags & self::FLAG_IGNORE_MODE) === self::FLAG_IGNORE_MODE ? 'INSERT IGNORE' : 'INSERT',
             $this->escape($this->metadata->getTable()),
             implode(', ', array_map(
@@ -162,8 +183,6 @@ class BulkUpsert extends AbstractBulk
             )),
             trim(str_repeat(sprintf('(%s), ', implode(', ', array_fill(0, count($fields), '?'))), count($values)), ', ')
         );
-
-        $query = sprintf('%s ON DUPLICATE KEY UPDATE', $query);
 
         $stmt = $this->manager->getConnection()->prepare($query);
         $index = 0;
@@ -183,5 +202,36 @@ class BulkUpsert extends AbstractBulk
         $noLastId = ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID || $this->metadata->getGenerator() !== null;
 
         return $noLastId ? null : $this->manager->getConnection()->lastInsertId();
+    }
+
+    /**
+     * works only for Events::prePersist and Events::preUpdate at the moment
+     *
+     * @param object $entity
+     * @return void
+     */
+    private function callLifeCycleCallbackFunctionsIfDefined(object $entity): void
+    {
+        if ($this->metadata->getLifeCycleCallBacks()) {
+            $isNewObject = $this->isNewObject($entity);
+            foreach ($this->metadata->getLifeCycleCallBacks() as $callBackName => $callBackFunctions) {
+                switch ($callBackName) {
+                    case Events::prePersist:
+                        if ($isNewObject) {
+                            foreach ($callBackFunctions as $callBackFunction) {
+                                $entity->$callBackFunction();
+                            }
+                        }
+                        break;
+                    case Events::preUpdate:
+                        if (!$isNewObject) {
+                            foreach ($callBackFunctions as $callBackFunction) {
+                                $entity->$callBackFunction();
+                            }
+                        }
+                        break;
+                }
+            }
+        }
     }
 }

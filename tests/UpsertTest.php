@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use DateTime;
 use ReflectionClass;
 use Taxaos\Bulk\BulkUpsert;
 use Taxaos\Exceptions\FieldNotFoundException;
@@ -86,7 +87,9 @@ class UpsertTest extends AbstractBulkTest
                     'year' => 2022,
                     'month' => 10,
                     'title' => 'random_text',
-                    'author' => 'jnweifohg0934hgh'
+                    'author' => 'jnweifohg0934hgh',
+                    'createdAt' => '2022-10-17T00:00:00+00:00',
+                    'updatedAt' => null,
                 ]
             ],
             $this->extractField($bulk, 'values')
@@ -140,9 +143,23 @@ class UpsertTest extends AbstractBulkTest
      */
     protected function extractField(object $class, string $name): mixed
     {
-        $prop = (new ReflectionClass($class))->getProperty($name);
-        $prop->setAccessible(true);
+        $reflectionClass = new ReflectionClass($class);
+        $property = $reflectionClass->getProperty($name);
+        $property->setAccessible(true);
 
-        return $prop->getValue($class);
+        $propertyValue = $property->getValue($class);
+
+        if (is_array($propertyValue)) {
+            foreach ($propertyValue as $outerKey => $otherValue) {
+                foreach ($otherValue as $key => $value) {
+                    if ($value instanceof DateTime) {
+                        $propertyValue[$outerKey][$key] = $value->format('c');
+                    }
+                }
+            }
+        }
+
+
+        return $propertyValue;
     }
 }
