@@ -1,15 +1,14 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\DTO;
+namespace Taxaos\DTO;
 
 /**
  * Class JoinColumnMetadata
  */
 final class JoinColumnMetadata extends AbstractColumnMetadata
 {
-    /** @var string */
-    private $referenced;
+    private string $referenced;
 
     /**
      * Setter for Referenced.

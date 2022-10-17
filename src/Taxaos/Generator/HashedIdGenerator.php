@@ -1,13 +1,14 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace SixDreams\Generator;
+namespace Taxaos\Generator;
 
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Id\AbstractIdGenerator;
-use SixDreams\Exceptions\CannotGenerateIdException;
-use SixDreams\Exceptions\EntityNotSupportedException;
+use InvalidArgumentException;
+use Taxaos\Exceptions\CannotGenerateIdException;
+use Taxaos\Exceptions\EntityNotSupportedException;
 
 /**
  * Class HashedIdGenerator
@@ -19,6 +20,9 @@ class HashedIdGenerator extends AbstractIdGenerator implements BulkGeneratorInte
      */
     public function generate(EntityManager $em, $entity): string
     {
+        if ($entity === null) {
+            throw new InvalidArgumentException('Entity should not be null');
+        }
         if (!($entity instanceof HashedIdEntityInterface)) {
             throw new EntityNotSupportedException($entity);
         }

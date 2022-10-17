@@ -1,16 +1,23 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Bulk;
+namespace Taxaos\Bulk;
 
 use Doctrine\DBAL\Driver\Statement;
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Schema\Identifier;
+use Doctrine\DBAL\Types\ConversionException;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
-use SixDreams\DTO\ColumnMetadataInterface;
-use SixDreams\DTO\JoinColumnMetadata;
-use SixDreams\DTO\Metadata;
-use SixDreams\Exceptions\FieldNotFoundException;
+use PDO;
+use ReflectionClass;
+use ReflectionException;
+use ReflectionProperty;
+use Taxaos\DTO\ColumnMetadataInterface;
+use Taxaos\DTO\JoinColumnMetadata;
+use Taxaos\DTO\Metadata;
+use Taxaos\Exceptions\FieldNotFoundException;
+use Taxaos\Exceptions\NotSupportedIdGeneratorException;
 
 /**
  * Class AbstractBulk
@@ -18,45 +25,47 @@ use SixDreams\Exceptions\FieldNotFoundException;
 abstract class AbstractBulk
 {
     /** @var EntityManagerInterface */
-    protected $manager;
+    protected EntityManagerInterface $manager;
 
-    /** @var \ReflectionProperty[] */
-    private $cachedReflProps = [];
+    /** @var ReflectionProperty[] */
+    private array $cachedReflProps = [];
 
-    /** @var \ReflectionClass */
-    protected $reflection;
+    /** @var ReflectionClass */
+    protected ReflectionClass $reflection;
 
     /** @var string */
-    protected $class;
+    protected string $class;
 
     /** @var Metadata */
-    protected $metadata;
+    protected Metadata $metadata;
 
     /**
      * BulkQuery constructor.
      *
      * @param EntityManagerInterface $manager
-     * @param string                 $class
+     * @param string $class
+     * @throws ReflectionException
+     * @throws NotSupportedIdGeneratorException
      */
     public function __construct(EntityManagerInterface $manager, string $class)
     {
         $this->manager    = $manager;
         $this->class      = $class;
         $this->metadata   = MetadataLoader::load($manager->getClassMetadata($class));
-        $this->reflection = new \ReflectionClass($class);
+        $this->reflection = new ReflectionClass($class);
     }
 
     /**
      * Search property in class or it's subclasses and make it accessible.
      *
-     * @param \ReflectionClass $class
+     * @param ReflectionClass $class
      * @param string           $name
      *
-     * @return \ReflectionProperty
+     * @return ReflectionProperty
      *
      * @throws FieldNotFoundException
      */
-    protected function getClassProperty(\ReflectionClass $class, string $name): \ReflectionProperty
+    protected function getClassProperty(ReflectionClass $class, string $name): ReflectionProperty
     {
         if ($class->hasProperty($name)) {
             $property = $class->getProperty($name);
@@ -66,7 +75,7 @@ abstract class AbstractBulk
         }
 
         $subClass = $class->getParentClass();
-        if (!$class) {
+        if (!$subClass) {
             throw new FieldNotFoundException($class->getName(), $name);
         }
 
@@ -76,15 +85,15 @@ abstract class AbstractBulk
     /**
      * Get the value of a property from a class or subclass.
      *
-     * @param \ReflectionClass $class
+     * @param ReflectionClass $class
      * @param string           $name
      * @param mixed            $object
      *
      * @return ClassValue
      *
-     * @throws FieldNotFoundException
+     * @throws FieldNotFoundException|ReflectionException
      */
-    protected function getClassValue(\ReflectionClass $class, string $name, $object): ClassValue
+    protected function getClassValue(ReflectionClass $class, string $name, $object): ClassValue
     {
         // Embeded properties are in dot notaion
         if (str_contains($name, '.'))
@@ -95,10 +104,10 @@ abstract class AbstractBulk
             {
                 return $classValue;
             }
-            for ($i = 1; $i < count($parts); ++$i)
+            for ($i = 1, $iMax = count($parts); $i < $iMax; ++$i)
             {
                 $oldValue = $classValue->getValue();
-                $classValue = $this->getClassValue(new \ReflectionClass($oldValue), $parts[$i], $oldValue);
+                $classValue = $this->getClassValue(new ReflectionClass($oldValue), $parts[$i], $oldValue);
                 if (!$classValue->isInitialised())
                 {
                     return $classValue;
@@ -139,23 +148,25 @@ abstract class AbstractBulk
     {
         $fields = [[]];
         foreach ($values as $value) {
-            $fields[] = \array_keys($value);
+            $fields[] = array_keys($value);
         }
 
-        return \array_flip(\array_flip(\array_merge(...$fields)));
+        return array_flip(array_flip(array_merge(...$fields)));
     }
 
     /**
      * Bind value to statement.
      *
-     * @param Statement               $statement
-     * @param int|string              $index
+     * @param Statement $statement
+     * @param int|string $index
      * @param ColumnMetadataInterface $column
-     * @param mixed                   $value
+     * @param mixed $value
+     * @throws Exception
+     * @throws ConversionException
      */
     protected function bind(Statement $statement, $index, ColumnMetadataInterface $column, $value): void
     {
-        $type = \PDO::PARAM_STR;
+        $type = PDO::PARAM_STR;
         if (Type::hasType($column->getType())) {
             $type  = Type::getType($column->getType());
             $value = $type->convertToDatabaseValue(
@@ -177,7 +188,7 @@ abstract class AbstractBulk
      *
      * @return ClassValue
      *
-     * @throws FieldNotFoundException
+     * @throws FieldNotFoundException|ReflectionException
      */
     protected function getJoinedEntityValue(ColumnMetadataInterface $column, ClassValue $classValue, string $field) : ClassValue
     {
@@ -188,16 +199,16 @@ abstract class AbstractBulk
 
         $value = $classValue->getValue();
 
-        if (!($column instanceof JoinColumnMetadata) || $value === null || !is_object($value))
+        if (!($column instanceof JoinColumnMetadata) || !is_object($value))
         {
             return $classValue;
         }
 
         $subPropName = $field . '.' . $column->getReferenced();
-        if (!\array_key_exists($subPropName, $this->cachedReflProps))
+        if (!array_key_exists($subPropName, $this->cachedReflProps))
         {
             $this->cachedReflProps[$subPropName] = $this->getClassProperty(
-                new \ReflectionClass($value),
+                new ReflectionClass($value),
                 $column->getReferenced()
             );
             $this->cachedReflProps[$subPropName]->setAccessible(true);
@@ -218,6 +229,7 @@ abstract class AbstractBulk
      * @param string $name
      *
      * @return string
+     * @throws Exception
      */
     protected function escape(string $name): string
     {

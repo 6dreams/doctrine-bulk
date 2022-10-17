@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Bulk;
+namespace Taxaos\Bulk;
 
 /**
  * Helper class for storing the value of a property from a class or subclass.

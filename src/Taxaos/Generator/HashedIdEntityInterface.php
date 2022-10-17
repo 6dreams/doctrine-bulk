@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Generator;
+namespace Taxaos\Generator;
 
 /**
  * Class HashesIdEntityInterface
@@ -30,5 +30,5 @@ interface HashedIdEntityInterface
      *
      * @return mixed
      */
-    public function getHashGeneratorFieldValue(string $name, $value);
+    public function getHashGeneratorFieldValue(string $name, $value): mixed;
 }

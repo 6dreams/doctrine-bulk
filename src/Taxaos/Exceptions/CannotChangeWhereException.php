@@ -1,7 +1,7 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace SixDreams\Exceptions;
+namespace Taxaos\Exceptions;
 
 /**
  * Class CannotChangeWhereException
@@ -17,11 +17,12 @@ final class CannotChangeWhereException extends \Exception
      */
     public function __construct(string $class, string $current, string $trying)
     {
-        parent::__construct(\sprintf(
-            'Cannot change where criteria in "%s" from "%s" to "%s", because data is all ready set.',
-            $class,
-            $current,
-            $trying
-        ));
+        parent::__construct(
+            sprintf(
+                'Cannot change where criteria in "%s" from "%s" to "%s", because data is all ready set.',
+                $class,
+                $current,
+                $trying
+            ));
     }
 }

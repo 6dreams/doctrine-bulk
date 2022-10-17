@@ -1,12 +1,12 @@
 <?php
 declare(strict_types = 1);
 
-namespace SixDreams\Exceptions;
+namespace Taxaos\Exceptions;
 
 /**
  * Class NullValueException
  */
-final class NullValueException extends SixDreamsException
+final class NullValueException extends TaxaosException
 {
     /**
      * NullValueException constructor.
@@ -16,6 +16,6 @@ final class NullValueException extends SixDreamsException
      */
     public function __construct(string $name, string $class)
     {
-        parent::__construct(\sprintf('Null does not allow in field "%s" of "%s"', $name, $class));
+        parent::__construct(sprintf('Null does not allow in field "%s" of "%s"', $name, $class));
     }
 }
