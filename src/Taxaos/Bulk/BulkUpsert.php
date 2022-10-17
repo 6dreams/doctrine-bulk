@@ -13,14 +13,13 @@ use Taxaos\Exceptions\NullValueException;
 use Taxaos\Exceptions\WrongEntityException;
 
 /**
- * Allows to insert multiple doctrine entities to database.
+ * Allows to upsert multiple doctrine entities to database.
  */
 class BulkUpsert extends AbstractBulk
 {
     public const FLAG_NONE = 0;
-    public const FLAG_IGNORE_MODE = 1 << 1;
-    public const FLAG_IGNORE_DUPLICATES = 1 << 2;
-    public const FLAG_NO_RETURN_ID = 1 << 3;
+    public const FLAG_IGNORE_DUPLICATES = 1 << 1;
+    public const FLAG_NO_RETURN_ID = 1 << 2;
 
     public const DEFAULT_ROWS = 1000;
 
@@ -170,38 +169,62 @@ class BulkUpsert extends AbstractBulk
     private function executePartial(int $flags, array $values): ?string
     {
         $fields = $this->getAllUsedFields($values);
-
-        $query = sprintf(
-            '%s INTO %s (%s) VALUES %s ON DUPLICATE KEY UPDATE;',
-            ($flags & self::FLAG_IGNORE_MODE) === self::FLAG_IGNORE_MODE ? 'INSERT IGNORE' : 'INSERT',
-            $this->escape($this->metadata->getTable()),
-            implode(', ', array_map(
-                function (string $column) {
-                    return $this->escape($this->metadata->getField($column)->getName());
-                },
-                $fields
-            )),
-            trim(str_repeat(sprintf('(%s), ', implode(', ', array_fill(0, count($fields), '?'))), count($values)), ', ')
+        $dbFields = array_map(
+            function (string $column) {
+                return $this->escape($this->metadata->getField($column)->getName());
+            },
+            $fields
         );
 
-        $stmt = $this->manager->getConnection()->prepare($query);
+        $onDuplicateKeyParts = [];
+        foreach ($dbFields as $dbFieldName) {
+            $onDuplicateKeyParts[] = sprintf('%s=VALUES(%s)', $dbFieldName, $dbFieldName);
+        }
+
+        $query = sprintf(
+            'INSERT INTO %s (%s) VALUES %s ON DUPLICATE KEY UPDATE %s',
+            $this->escape($this->metadata->getTable()),
+            implode(
+                ', ',
+                $dbFields
+            ),
+            trim(str_repeat(sprintf('(%s), ', implode(', ', array_fill(0, count($fields), '?'))), count($values)), ', '),
+            implode(', ', $onDuplicateKeyParts)
+        );
+
+        $statement = $this->manager->getConnection()->prepare($query);
+
         $index = 0;
         foreach ($values as $row) {
             foreach ($fields as $name) {
                 $index++;
                 $value = $row[$name] ?? null;
-                if (in_array($name, $this->metadata->getIdFields(), true) && ($generate = $this->metadata->getGenerator())) {
+                if (
+                    in_array($name, $this->metadata->getIdFields(), true) && $generate = $this->metadata->getGenerator()) {
                     $value = $generate->generateBulk($this->manager, $this->class, $row);
                 }
-                $this->bind($stmt, $index, $this->metadata->getField($name), $value);
+                $this->bind($statement, $index, $this->metadata->getField($name), $value);
             }
         }
 
-        $stmt->executeQuery();
+        $statement->executeQuery();
 
         $noLastId = ($flags & self::FLAG_NO_RETURN_ID) === self::FLAG_NO_RETURN_ID || $this->metadata->getGenerator() !== null;
 
         return $noLastId ? null : $this->manager->getConnection()->lastInsertId();
+    }
+
+    private function a(array $fields)
+    {
+        return implode(
+            ', ',
+            array_map(
+                function (string $column) {
+                    return $this->escape($this->metadata->getField($column)->getName());
+                },
+                $fields
+            )
+        );
     }
 
     /**
