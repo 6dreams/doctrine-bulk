@@ -3,7 +3,7 @@ declare(strict_types = 1);
 
 namespace Taxaos\Bulk;
 
-use Doctrine\DBAL\Driver\Statement;
+use Doctrine\DBAL\Statement;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Types\ConversionException;
